@@ -58,9 +58,9 @@ export function ComicCuts() {
     window.history.replaceState(null, '', newUrl.toString());
   };
 
-  const canEdit = comic && (
+  const canEdit: boolean = !!comic && (
     comic.owner_id === user?.id || 
-    comic.collaborators?.includes(user?.id)
+    (comic.collaborators?.includes(user?.id) ?? false)
   );
 
   return (

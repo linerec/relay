@@ -3,6 +3,7 @@ export interface Comic {
   title: string;
   owner_id: string;
   created_at: string;
+  collaborators?: string[];
 }
 
 export interface Cut {

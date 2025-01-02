@@ -13,7 +13,10 @@ export async function updateCutOrder(cut: Cut, newOrderIndex: number) {
 export async function fetchCutsByComicId(comicId: string) {
   const { data, error } = await supabase
     .from('cuts')
-    .select(`*`)
+    .select(`
+      *,
+      profiles!created_by(username)
+      `)
     .eq('comic_id', comicId)
     .order('order_index');
 
