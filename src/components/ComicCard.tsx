@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Button, Form } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import { Comic } from '../types';
+import { Comic, Profile } from '../types';
 import { supabase } from '../lib/supabase';
 
 interface ComicCardProps {
@@ -13,9 +13,31 @@ interface ComicCardProps {
 export function ComicCard({ comic, currentUserId, onComicUpdated }: ComicCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(comic.title);
+  const [collaborators, setCollaborators] = useState<Profile[]>([]);
   const navigate = useNavigate();
 
   const isOwner = currentUserId === comic.owner_id;
+  const isCollaborator = comic.collaborators?.includes(currentUserId || '');
+  const canEdit = isOwner || isCollaborator;
+
+  useEffect(() => {
+    if (comic.collaborators?.length) {
+      fetchCollaborators();
+    }
+  }, [comic.collaborators]);
+
+  const fetchCollaborators = async () => {
+    if (!comic.collaborators?.length) return;
+
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, username')
+      .in('id', comic.collaborators);
+
+    if (data) {
+      setCollaborators(data);
+    }
+  };
 
   const handleUpdate = async () => {
     try {
@@ -78,14 +100,25 @@ export function ComicCard({ comic, currentUserId, onComicUpdated }: ComicCardPro
             >
               {comic.title}
             </Card.Title>
-            {isOwner && (
+            
+            {collaborators.length > 0 && (
+              <div className="mb-2 text-muted">
+                <small>
+                  Collaborators: {collaborators.map(c => c.username).join(', ')}
+                </small>
+              </div>
+            )}
+
+            {canEdit && (
               <div className="mt-2">
                 <Button variant="outline-primary" size="sm" onClick={() => setIsEditing(true)} className="me-2">
                   Edit
                 </Button>
-                <Button variant="outline-danger" size="sm" onClick={handleDelete}>
-                  Delete
-                </Button>
+                {isOwner && (
+                  <Button variant="outline-danger" size="sm" onClick={handleDelete}>
+                    Delete
+                  </Button>
+                )}
               </div>
             )}
           </>

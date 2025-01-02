@@ -25,3 +25,9 @@ export interface User {
   id: string;
   email: string;
 }
+
+export interface Profile {
+  id: string;
+  username: string;
+  email?: string;
+}
