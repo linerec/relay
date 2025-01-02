@@ -10,7 +10,7 @@ export function CutDetail() {
   const { comicId, cutId } = useParams<{ comicId: string; cutId: string }>();
   const navigate = useNavigate();
   const [cut, setCut] = useState<Cut | null>(null);
-  const [isOwner, setIsOwner] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
   const [formData, setFormData] = useState<CutUpdate>({
     storyboard_text: '',
     drawing: undefined,
@@ -34,7 +34,9 @@ export function CutDetail() {
       
       const { data: { user } } = await supabase.auth.getUser();
       if (data.comics) {
-        setIsOwner(user?.id === data.comics.owner_id);
+        const isOwner = user?.id === data.comics.owner_id;
+        const isCollaborator = data.comics.collaborators?.includes(user?.id);
+        setCanEdit(isOwner || isCollaborator);
       }
     } catch (error) {
       console.error('Error loading cut:', error);
@@ -44,6 +46,11 @@ export function CutDetail() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cutId) return;
+
+    if (!canEdit) {
+      alert('수정 권한이 없습니다.');
+      return;
+    }
 
     try {
       setIsSaving(true);
@@ -92,7 +99,7 @@ export function CutDetail() {
               ...prev,
               storyboard_text: e.target.value
             }))}
-            disabled={!isOwner}
+            disabled={!canEdit}
           />
         </Form.Group>
 
@@ -108,7 +115,7 @@ export function CutDetail() {
           >
             Back
           </Button>
-          {isOwner && (
+          {canEdit && (
             <Button 
               type="submit" 
               variant="primary"

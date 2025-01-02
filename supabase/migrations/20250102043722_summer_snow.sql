@@ -33,3 +33,50 @@ CREATE TRIGGER sync_profile_email_trigger
 AFTER INSERT ON profiles
 FOR EACH ROW
 EXECUTE FUNCTION sync_profile_email();
+
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'cuts' AND column_name = 'updated_at'
+  ) THEN
+    ALTER TABLE cuts ADD COLUMN updated_at TIMESTAMPTZ DEFAULT now();
+  END IF;
+END $$;
+
+-- 기존 RLS 정책 유지
+
+-- Allow collaborators to update and delete cuts
+CREATE POLICY "Collaborators can update cuts"
+  ON cuts
+  FOR UPDATE
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM comics
+      WHERE comics.id = cuts.comic_id
+      AND (comics.owner_id = auth.uid() 
+           OR comics.collaborators @> ARRAY[auth.uid()]::uuid[])
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM comics
+      WHERE comics.id = cuts.comic_id
+      AND (comics.owner_id = auth.uid() 
+           OR comics.collaborators @> ARRAY[auth.uid()]::uuid[])
+    )
+  );
+
+CREATE POLICY "Collaborators can delete cuts"
+  ON cuts
+  FOR DELETE
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM comics
+      WHERE comics.id = cuts.comic_id
+      AND (comics.owner_id = auth.uid() 
+           OR comics.collaborators @> ARRAY[auth.uid()]::uuid[])
+    )
+  );

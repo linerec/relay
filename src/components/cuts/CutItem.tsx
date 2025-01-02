@@ -1,74 +1,99 @@
-import React, { useState } from 'react';
-import { Card, Button } from 'react-bootstrap';
+import React from 'react';
+import { Card, Button, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { ArrowUp, ArrowDown, Edit } from 'lucide-react';
 import { Cut } from '../../types';
 import { useNavigate } from 'react-router-dom';
 
 interface CutItemProps {
   cut: Cut;
-  isOwner: boolean;
+  canEdit: boolean;
   onMoveUp: () => void;
   onMoveDown: () => void;
-  onCutUpdated: () => void;
   isFirst: boolean;
   isLast: boolean;
+  onCutUpdated: () => void;
 }
 
 export function CutItem({
   cut,
-  isOwner,
+  canEdit,
   onMoveUp,
   onMoveDown,
   isFirst,
   isLast,
+  onCutUpdated,
 }: CutItemProps) {
   const navigate = useNavigate();
 
   return (
     <Card>
       <Card.Body>
-        <div className="d-flex justify-content-between align-items-start">
-          <div className="flex-grow-1">
+        <div className="d-flex flex-column flex-md-row justify-content-between align-items-start">
+          <div className="flex-grow-1 mb-2 mb-md-0 me-md-3">
             {cut.drawing && (
               <img
                 src={cut.drawing}
                 alt="Cut drawing"
-                className="img-fluid mb-2"
+                className="img-fluid"
                 style={{ maxHeight: '150px' }}
               />
             )}
-            <p className="mb-0">{cut.storyboard_text}</p>
           </div>
-          <div className="d-flex gap-2 ms-3">
-            {isOwner && (
-              <>
-                <div className="d-flex flex-column">
-                  <Button
-                    variant="outline-secondary"
-                    size="sm"
-                    onClick={onMoveUp}
-                    disabled={isFirst}
+          <div className="flex-grow-1">
+            <p className="mb-1">{cut.storyboard_text}</p>
+            <p className="mb-1 text-muted">
+              생성 날짜: {new Date(cut.created_at).toLocaleString()}
+            </p>
+            <p className="mb-2 text-muted">
+              생성자: {cut.profiles?.username || 'Unknown'}
+            </p>
+            <div className="d-flex gap-2">
+              {canEdit && (
+                <>
+                  <div className="d-flex flex-column">
+                    <OverlayTrigger
+                      placement="top"
+                      overlay={<Tooltip id={`tooltip-move-up-${cut.id}`}>Move Up</Tooltip>}
+                    >
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={onMoveUp}
+                        disabled={isFirst}
+                        className="mb-1"
+                      >
+                        <ArrowUp size={16} />
+                      </Button>
+                    </OverlayTrigger>
+                    <OverlayTrigger
+                      placement="top"
+                      overlay={<Tooltip id={`tooltip-move-down-${cut.id}`}>Move Down</Tooltip>}
+                    >
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={onMoveDown}
+                        disabled={isLast}
+                      >
+                        <ArrowDown size={16} />
+                      </Button>
+                    </OverlayTrigger>
+                  </div>
+                  <OverlayTrigger
+                    placement="top"
+                    overlay={<Tooltip id={`tooltip-edit-${cut.id}`}>Edit Cut</Tooltip>}
                   >
-                    <ArrowUp size={16} />
-                  </Button>
-                  <Button
-                    variant="outline-secondary"
-                    size="sm"
-                    onClick={onMoveDown}
-                    disabled={isLast}
-                  >
-                    <ArrowDown size={16} />
-                  </Button>
-                </div>
-                <Button
-                  variant="outline-primary"
-                  size="sm"
-                  onClick={() => navigate(`/comics/${cut.comic_id}/cuts/${cut.id}`)}
-                >
-                  <Edit size={16} />
-                </Button>
-              </>
-            )}
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => navigate(`/comics/${cut.comic_id}/cuts/${cut.id}`)}
+                    >
+                      <Edit size={16} />
+                    </Button>
+                  </OverlayTrigger>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </Card.Body>

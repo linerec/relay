@@ -79,8 +79,8 @@ export function ComicCuts() {
 
       {viewMode === 'list' ? (
         <CutList
+          canEdit={canEdit}
           cuts={cuts}
-          isOwner={!!user}
           onCutsUpdated={fetchCuts}
         />
       ) : (

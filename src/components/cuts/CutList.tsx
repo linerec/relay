@@ -5,11 +5,11 @@ import { updateCutOrder } from '../../services/cutService';
 
 interface CutListProps {
   cuts: Cut[];
-  isOwner: boolean;
+  canEdit: boolean;
   onCutsUpdated: () => void;
 }
 
-export function CutList({ cuts, isOwner, onCutsUpdated }: CutListProps) {
+export function CutList({ cuts, canEdit, onCutsUpdated }: CutListProps) {
   const handleMoveUp = async (cut: Cut) => {
     if (cut.order_index === 0) return;
     const prevCut = cuts.find(c => c.order_index === cut.order_index - 1);
@@ -48,7 +48,7 @@ export function CutList({ cuts, isOwner, onCutsUpdated }: CutListProps) {
         <CutItem
           key={cut.id}
           cut={cut}
-          isOwner={isOwner}
+          canEdit={canEdit}
           onMoveUp={() => handleMoveUp(cut)}
           onMoveDown={() => handleMoveDown(cut)}
           onCutUpdated={onCutsUpdated}

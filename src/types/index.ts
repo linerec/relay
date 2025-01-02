@@ -14,6 +14,10 @@ export interface Cut {
   created_by: string;
   created_at: string;
   comics?: Comic;
+  profiles?: {
+    username: string;
+  };
+  updated_at: string;
 }
 
 export interface CutUpdate {
