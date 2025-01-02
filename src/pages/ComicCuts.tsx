@@ -1,24 +1,30 @@
 import React, { useEffect, useState } from 'react';
-import { Container, Button } from 'react-bootstrap';
-import { useParams } from 'react-router-dom';
+import { Container, Button, Row, Col } from 'react-bootstrap';
+import { useParams, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Cut, Comic } from '../types';
 import { CutList } from '../components/cuts/CutList';
+import { WebtoonView } from '../components/cuts/WebtoonView';
+import { ViewModeToggle } from '../components/cuts/ViewModeToggle';
 import { CreateCutModal } from '../components/cuts/CreateCutModal';
 import { fetchCutsByComicId } from '../services/cutService';
 
 export function ComicCuts() {
   const { comicId } = useParams<{ comicId: string }>();
+  const location = useLocation();
   const [cuts, setCuts] = useState<Cut[]>([]);
   const [comic, setComic] = useState<Comic | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const query = new URLSearchParams(location.search);
+  const initialViewMode = query.get('view') === 'webtoon' ? 'webtoon' : 'list';
+  const [viewMode, setViewMode] = useState<'list' | 'webtoon'>(initialViewMode);
 
   useEffect(() => {
     fetchComic();
     fetchCuts();
     getCurrentUser();
-  }, [comicId]);
+  }, [comicId, location.search]);
 
   const getCurrentUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -45,6 +51,13 @@ export function ComicCuts() {
     }
   };
 
+  const handleViewModeChange = (mode: 'list' | 'webtoon') => {
+    setViewMode(mode);
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.set('view', mode);
+    window.history.replaceState(null, '', newUrl.toString());
+  };
+
   const canEdit = comic && (
     comic.owner_id === user?.id || 
     comic.collaborators?.includes(user?.id)
@@ -54,18 +67,25 @@ export function ComicCuts() {
     <Container className="py-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h1>{comic?.title} - Cuts</h1>
-        {canEdit && (
-          <Button variant="primary" onClick={() => setShowCreateModal(true)}>
-            Add Cut
-          </Button>
-        )}
+        <div className="d-flex gap-3">
+          <ViewModeToggle mode={viewMode} onModeChange={handleViewModeChange} />
+          {canEdit && (
+            <Button variant="primary" onClick={() => setShowCreateModal(true)}>
+              Add Cut
+            </Button>
+          )}
+        </div>
       </div>
 
-      <CutList
-        cuts={cuts}
-        isOwner={canEdit}
-        onCutsUpdated={fetchCuts}
-      />
+      {viewMode === 'list' ? (
+        <CutList
+          cuts={cuts}
+          isOwner={!!user}
+          onCutsUpdated={fetchCuts}
+        />
+      ) : (
+        <WebtoonView cuts={cuts} />
+      )}
 
       <CreateCutModal
         show={showCreateModal}
