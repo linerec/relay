@@ -1,0 +1,26 @@
+.webtoon-view {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px 0;
+}
+
+.webtoon-cut {
+  margin-bottom: 40px;
+  background: white;
+  overflow: hidden;
+}
+
+.webtoon-image {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.webtoon-text {
+  padding: 16px;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #333;
+  background: white;
+  border-top: 1px solid #eee;
+}
