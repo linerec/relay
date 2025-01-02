@@ -12,7 +12,7 @@ export function TextEditor({ show, onHide }: TextEditorProps) {
   const [fontSize, setFontSize] = useState(20);
   const [fontFamily, setFontFamily] = useState('Arial');
   const [color, setColor] = useState('#000000');
-  const { addText } = useDrawingStore();
+  const { addText, setTool } = useDrawingStore();
 
   const fonts = [
     'Arial',
@@ -35,6 +35,7 @@ export function TextEditor({ show, onHide }: TextEditorProps) {
       fontFamily,
       color
     });
+    setTool('select');
     
     setText('');
     onHide();

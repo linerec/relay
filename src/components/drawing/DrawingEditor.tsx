@@ -69,8 +69,34 @@ export function DrawingEditor({ initialImage, onSave }: DrawingEditorProps) {
 
     fabricCanvasRef.current.freeDrawingBrush.color = color;
     fabricCanvasRef.current.freeDrawingBrush.width = settings.size;
-    fabricCanvasRef.current.freeDrawingBrush.opacity = settings.opacity;
   }, [currentTool, brushColor, brushSettings, eraserSettings]);
+
+  // 이미지 업로드 핸들러
+  useEffect(() => {
+    const handleUploadImage = (event: Event) => {
+      const customEvent = event as CustomEvent<string>;
+      const dataUrl = customEvent.detail;
+      if (fabricCanvasRef.current) {
+        fabric.Image.fromURL(dataUrl, (img) => {
+          img.scaleToWidth(fabricCanvasRef.current!.width! / 2);
+          img.set({
+            left: fabricCanvasRef.current!.width! / 4,
+            top: fabricCanvasRef.current!.height! / 4,
+            selectable: true,
+          });
+          fabricCanvasRef.current!.add(img);
+          fabricCanvasRef.current!.setActiveObject(img);
+          fabricCanvasRef.current!.renderAll();
+        });
+      }
+    };
+
+    window.addEventListener('uploadImage', handleUploadImage);
+
+    return () => {
+      window.removeEventListener('uploadImage', handleUploadImage);
+    };
+  }, []);
 
   const handleSave = () => {
     if (!fabricCanvasRef.current) return;

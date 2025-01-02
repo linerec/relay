@@ -2,7 +2,15 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { fabric } from 'fabric';
 
-type Tool = 'select' | 'brush' | 'eraser';
+type Tool = 'select' | 'brush' | 'eraser' | 'draw' | 'text';
+
+const hexToRgba = (hex: string, opacity: number): string => {
+  const bigint = parseInt(hex.replace('#', ''), 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r},${g},${b},${opacity})`;
+};
 
 interface ToolSettings {
   size: number;
@@ -22,9 +30,7 @@ interface DrawingState {
   setCurrentTool: (tool: Tool) => void;
   setBrushColor: (color: string) => void;
   setBrushSize: (size: number) => void;
-  setBrushOpacity: (opacity: number) => void;
   setEraserSize: (size: number) => void;
-  setEraserOpacity: (opacity: number) => void;
   
   addText: (options: { text: string; fontSize: number; fontFamily: string; color: string }) => void;
   deleteSelectedObjects: () => void;
@@ -34,6 +40,7 @@ interface DrawingState {
   addToHistory: (state: string) => void;
   canUndo: () => boolean;
   canRedo: () => boolean;
+  setTool: (tool: Tool) => void;
 }
 
 export const useDrawingStore = create<DrawingState>()(
@@ -43,7 +50,7 @@ export const useDrawingStore = create<DrawingState>()(
       currentTool: 'brush',
       brushColor: '#000000',
       brushSettings: {
-        size: 5,
+        size: 1,
         opacity: 1
       },
       eraserSettings: {
@@ -76,13 +83,11 @@ export const useDrawingStore = create<DrawingState>()(
           canvas.hoverCursor = 'crosshair';
           
           if (tool === 'eraser') {
-            canvas.freeDrawingBrush.color = '#ffffff';
+            canvas.freeDrawingBrush.color = hexToRgba('#ffffff', eraserSettings.opacity);
             canvas.freeDrawingBrush.width = eraserSettings.size;
-            canvas.freeDrawingBrush.opacity = eraserSettings.opacity;
           } else {
-            canvas.freeDrawingBrush.color = brushColor;
+            canvas.freeDrawingBrush.color = hexToRgba(brushColor, brushSettings.opacity);
             canvas.freeDrawingBrush.width = brushSettings.size;
-            canvas.freeDrawingBrush.opacity = brushSettings.opacity;
           }
         }
 
@@ -91,10 +96,10 @@ export const useDrawingStore = create<DrawingState>()(
       },
 
       setBrushColor: (color) => {
-        const { canvas, currentTool } = get();
+        const { canvas, brushSettings } = get();
         set({ brushColor: color });
-        if (canvas && currentTool === 'brush') {
-          canvas.freeDrawingBrush.color = color;
+        if (canvas && get().currentTool === 'brush') {
+          canvas.freeDrawingBrush.color = hexToRgba(color, brushSettings.opacity);
         }
       },
 
@@ -106,27 +111,11 @@ export const useDrawingStore = create<DrawingState>()(
         }
       },
 
-      setBrushOpacity: (opacity) => {
-        const { canvas, currentTool } = get();
-        set(state => ({ brushSettings: { ...state.brushSettings, opacity } }));
-        if (canvas && currentTool === 'brush') {
-          canvas.freeDrawingBrush.opacity = opacity;
-        }
-      },
-
       setEraserSize: (size) => {
         const { canvas, currentTool } = get();
         set(state => ({ eraserSettings: { ...state.eraserSettings, size } }));
         if (canvas && currentTool === 'eraser') {
           canvas.freeDrawingBrush.width = size;
-        }
-      },
-
-      setEraserOpacity: (opacity) => {
-        const { canvas, currentTool } = get();
-        set(state => ({ eraserSettings: { ...state.eraserSettings, opacity } }));
-        if (canvas && currentTool === 'eraser') {
-          canvas.freeDrawingBrush.opacity = opacity;
         }
       },
 
@@ -208,6 +197,10 @@ export const useDrawingStore = create<DrawingState>()(
       canRedo: () => {
         const { history, historyIndex } = get();
         return historyIndex < history.length - 1;
+      },
+
+      setTool: (tool) => {
+        set({ currentTool: tool });
       }
     }),
     {

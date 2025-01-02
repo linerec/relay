@@ -14,10 +14,8 @@ export function DrawingToolbar() {
     setBrushColor,
     brushSettings,
     setBrushSize,
-    setBrushOpacity,
     eraserSettings,
     setEraserSize,
-    setEraserOpacity,
     undo,
     redo,
     canUndo,
@@ -26,6 +24,20 @@ export function DrawingToolbar() {
   } = useDrawingStore();
 
   const hasSelectedObjects = canvas?.getActiveObjects().length > 0;
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && (file.type === 'image/png' || file.type === 'image/jpeg')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        window.dispatchEvent(new CustomEvent('uploadImage', { detail: dataUrl }));
+      };
+      reader.readAsDataURL(file);
+    } else {
+      alert('PNG 또는 JPG 파일만 업로드할 수 있습니다.');
+    }
+  };
 
   return (
     <>
@@ -78,20 +90,6 @@ export function DrawingToolbar() {
                 className="w-auto"
               />
             </Form.Group>
-
-            <Form.Group className="d-flex align-items-center gap-2">
-              <Form.Label className="mb-0">Opacity:</Form.Label>
-              <Form.Range
-                value={(currentTool === 'brush' ? brushSettings.opacity : eraserSettings.opacity) * 100}
-                onChange={(e) => currentTool === 'brush'
-                  ? setBrushOpacity(Number(e.target.value) / 100)
-                  : setEraserOpacity(Number(e.target.value) / 100)
-                }
-                min="1"
-                max="100"
-                className="w-auto"
-              />
-            </Form.Group>
           </>
         )}
 
@@ -132,6 +130,17 @@ export function DrawingToolbar() {
             <Trash2 size={16} />
           </Button>
         )}
+
+        <Button variant="secondary" onClick={() => document.getElementById('image-upload')?.click()}>
+          Upload Image
+        </Button>
+        <input
+          type="file"
+          id="image-upload"
+          accept="image/png, image/jpeg"
+          style={{ display: 'none' }}
+          onChange={handleImageUpload}
+        />
       </div>
 
       <TextEditor 
