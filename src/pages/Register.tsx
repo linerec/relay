@@ -1,36 +1,28 @@
 import React, { useState } from 'react';
 import { Container, Form, Button, Alert } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { handleRegister } from '../lib/auth';
 
 export function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
     try {
-      const { data: { user }, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      if (signUpError) throw signUpError;
-
-      if (user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([{ id: user.id, username }]);
-
-        if (profileError) throw profileError;
-      }
-
-      navigate('/login');
+      await handleRegister(email, password, username);
+      navigate('/');
     } catch (error: any) {
       setError(error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -39,7 +31,7 @@ export function Register() {
       <div className="mx-auto" style={{ maxWidth: '400px' }}>
         <h2 className="text-center mb-4">Register for Relay Comics</h2>
         {error && <Alert variant="danger">{error}</Alert>}
-        <Form onSubmit={handleRegister}>
+        <Form onSubmit={handleSubmit}>
           <Form.Group className="mb-3">
             <Form.Label>Username</Form.Label>
             <Form.Control
@@ -70,8 +62,13 @@ export function Register() {
             />
           </Form.Group>
 
-          <Button variant="primary" type="submit" className="w-100">
-            Register
+          <Button 
+            variant="primary" 
+            type="submit" 
+            className="w-100"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Registering...' : 'Register'}
           </Button>
         </Form>
       </div>
