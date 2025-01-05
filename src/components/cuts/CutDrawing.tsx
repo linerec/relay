@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from 'react-bootstrap';
-import { DrawingEditor } from '../drawing/DrawingEditor';
+import { CanvasDrawingEditor } from '../drawing/CanvasDrawingEditor';
 
 interface CutDrawingProps {
   drawing?: string;
@@ -13,7 +13,7 @@ export function CutDrawing({ drawing, onDrawingChange }: CutDrawingProps) {
   if (isEditing) {
     return (
       <div className="mb-4">
-        <DrawingEditor
+        <CanvasDrawingEditor
           initialImage={drawing}
           onSave={(imageData) => {
             onDrawingChange(imageData);
