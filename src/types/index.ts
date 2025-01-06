@@ -36,3 +36,14 @@ export interface Profile {
   username: string;
   email?: string;
 }
+
+export interface Comment {
+  id: string;
+  comic_id: string;
+  parent_id: string | null;
+  user_id: string;
+  user_username: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}

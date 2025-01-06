@@ -7,6 +7,7 @@ import { CutList } from '../components/cuts/CutList';
 import { WebtoonView } from '../components/cuts/WebtoonView';
 import { ViewModeToggle } from '../components/cuts/ViewModeToggle';
 import { CreateCutModal } from '../components/cuts/CreateCutModal';
+import { CommentsSection } from '../components/comments/CommentsSection';
 import { fetchCutsByComicId } from '../services/cutService';
 
 export function ComicCuts() {
@@ -86,6 +87,8 @@ export function ComicCuts() {
       ) : (
         <WebtoonView cuts={cuts} />
       )}
+
+      {comicId && <CommentsSection comicId={comicId} user={user} />}
 
       <CreateCutModal
         show={showCreateModal}

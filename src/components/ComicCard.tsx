@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Form } from 'react-bootstrap';
+import { Card, Button, Form, Badge } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
+import { MessageSquare, Layers } from 'lucide-react';
 import { Comic, Profile } from '../types';
 import { supabase } from '../lib/supabase';
 
@@ -14,6 +15,8 @@ export function ComicCard({ comic, currentUserId, onComicUpdated }: ComicCardPro
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(comic.title);
   const [collaborators, setCollaborators] = useState<Profile[]>([]);
+  const [cutCount, setCutCount] = useState(0);
+  const [commentCount, setCommentCount] = useState(0);
   const navigate = useNavigate();
 
   const isOwner = currentUserId === comic.owner_id;
@@ -24,7 +27,8 @@ export function ComicCard({ comic, currentUserId, onComicUpdated }: ComicCardPro
     if (comic.collaborators?.length) {
       fetchCollaborators();
     }
-  }, [comic.collaborators]);
+    fetchCounts();
+  }, [comic]);
 
   const fetchCollaborators = async () => {
     if (!comic.collaborators?.length) return;
@@ -37,6 +41,23 @@ export function ComicCard({ comic, currentUserId, onComicUpdated }: ComicCardPro
     if (data) {
       setCollaborators(data);
     }
+  };
+
+  const fetchCounts = async () => {
+    // Fetch cut count
+    const { count: cuts } = await supabase
+      .from('cuts')
+      .select('*', { count: 'exact', head: true })
+      .eq('comic_id', comic.id);
+
+    // Fetch comment count
+    const { count: comments } = await supabase
+      .from('comments')
+      .select('*', { count: 'exact', head: true })
+      .eq('comic_id', comic.id);
+
+    setCutCount(cuts || 0);
+    setCommentCount(comments || 0);
   };
 
   const handleUpdate = async () => {
@@ -101,6 +122,17 @@ export function ComicCard({ comic, currentUserId, onComicUpdated }: ComicCardPro
               {comic.title}
             </Card.Title>
             
+            <div className="d-flex gap-2 mb-2">
+              <Badge bg="secondary" className="d-flex align-items-center gap-1">
+                <Layers size={14} />
+                {cutCount} cuts
+              </Badge>
+              <Badge bg="secondary" className="d-flex align-items-center gap-1">
+                <MessageSquare size={14} />
+                {commentCount} comments
+              </Badge>
+            </div>
+
             {collaborators.length > 0 && (
               <div className="mb-2 text-muted">
                 <small>
