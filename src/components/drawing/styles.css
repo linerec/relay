@@ -14,3 +14,27 @@
 .cursor-preview {
   transition: width 0.1s ease, height 0.1s ease;
 }
+
+.layer-panel {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 1rem;
+}
+
+.layer-item {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.layer-item.active {
+  border-color: #0d6efd;
+  background: #f0f7ff;
+}
+
+.layers-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
