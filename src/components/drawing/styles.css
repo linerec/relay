@@ -4,9 +4,13 @@
   border: 1px solid #ddd;
   border-radius: 4px;
   overflow: hidden;
-  margin: 1rem 0;
+  cursor: none;
 }
 
 .canvas-container canvas {
   display: block;
+}
+
+.cursor-preview {
+  transition: width 0.1s ease, height 0.1s ease;
 }

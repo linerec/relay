@@ -1,18 +1,20 @@
 import React from 'react';
-import { Button, ButtonGroup, Form } from 'react-bootstrap';
+import { Button, ButtonGroup } from 'react-bootstrap';
+import { BsBrush, BsEraser, BsFillBucketFill, BsArrowCounterclockwise, BsArrowClockwise } from 'react-icons/bs';
 import { useCanvasDrawingStore } from '../../stores/canvasDrawingStore';
-import { Paintbrush, Eraser, Undo2, Redo2 } from 'lucide-react';
+import { SizeSlider } from './SizeSlider';
+import { OpacitySlider } from './OpacitySlider';
 
 export function CanvasDrawingToolbar() {
   const {
     currentTool,
     setCurrentTool,
-    brushColor,
-    setBrushColor,
     brushSettings,
-    setBrushSize,
     eraserSettings,
+    setBrushSize,
     setEraserSize,
+    setOpacity,
+    setEraserOpacity,
     undo,
     redo,
     canUndo,
@@ -20,48 +22,44 @@ export function CanvasDrawingToolbar() {
   } = useCanvasDrawingStore();
 
   return (
-    <div className="drawing-toolbar d-flex gap-3 align-items-center mb-3">
+    <div className="drawing-toolbar mb-3 d-flex align-items-center gap-3">
       <ButtonGroup>
         <Button
           variant={currentTool === 'brush' ? 'primary' : 'outline-primary'}
           onClick={() => setCurrentTool('brush')}
-          title="Brush (B)"
+          title="Brush"
         >
-          <Paintbrush size={16} />
+          <BsBrush />
         </Button>
         <Button
           variant={currentTool === 'eraser' ? 'primary' : 'outline-primary'}
           onClick={() => setCurrentTool('eraser')}
-          title="Eraser (E)"
+          title="Eraser"
         >
-          <Eraser size={16} />
+          <BsEraser />
+        </Button>
+        <Button
+          variant={currentTool === 'bucket' ? 'primary' : 'outline-primary'}
+          onClick={() => setCurrentTool('bucket')}
+          title="Paint Bucket"
+        >
+          <BsFillBucketFill />
         </Button>
       </ButtonGroup>
 
-      {currentTool === 'brush' && (
-        <Form.Control
-          type="color"
-          value={brushColor}
-          onChange={(e) => setBrushColor(e.target.value)}
-          title="Choose brush color"
+      <div className="d-inline-block">
+        <SizeSlider
+          value={currentTool === 'eraser' ? eraserSettings.size : brushSettings.size}
+          onChange={currentTool === 'eraser' ? setEraserSize : setBrushSize}
         />
-      )}
-      
-      {(currentTool === 'brush' || currentTool === 'eraser') && (
-        <Form.Group className="d-flex align-items-center gap-2">
-          <Form.Label className="mb-0">Size:</Form.Label>
-          <Form.Range
-            value={currentTool === 'brush' ? brushSettings.size : eraserSettings.size}
-            onChange={(e) => currentTool === 'brush' 
-              ? setBrushSize(Number(e.target.value))
-              : setEraserSize(Number(e.target.value))
-            }
-            min="1"
-            max={currentTool === 'brush' ? "50" : "100"}
-            className="w-auto"
-          />
-        </Form.Group>
-      )}
+      </div>
+
+      <div className="d-inline-block">
+        <OpacitySlider
+          value={currentTool === 'eraser' ? eraserSettings.opacity : brushSettings.opacity}
+          onChange={currentTool === 'eraser' ? setEraserOpacity : setOpacity}
+        />
+      </div>
 
       <ButtonGroup>
         <Button
@@ -70,7 +68,7 @@ export function CanvasDrawingToolbar() {
           disabled={!canUndo()}
           title="Undo (Ctrl+Z)"
         >
-          <Undo2 size={16} />
+          <BsArrowCounterclockwise />
         </Button>
         <Button
           variant="outline-secondary"
@@ -78,7 +76,7 @@ export function CanvasDrawingToolbar() {
           disabled={!canRedo()}
           title="Redo (Ctrl+Y)"
         >
-          <Redo2 size={16} />
+          <BsArrowClockwise />
         </Button>
       </ButtonGroup>
     </div>
