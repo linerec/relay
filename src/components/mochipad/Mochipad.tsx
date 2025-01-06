@@ -29,11 +29,30 @@ export function Mochipad() {
     getActiveLayer
   } = useMochipadStore();
 
+  // 오프스크린 캔버스 refs
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const freezeCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
   useEffect(() => {
     if (layers.length === 0) {
       addLayer();
     }
   }, []);
+
+  // 오프스크린 캔버스 초기화
+  useEffect(() => {
+    // 오프스크린 캔버스 생성
+    const offscreenCanvas = document.createElement('canvas');
+    offscreenCanvas.width = canvasWidth;
+    offscreenCanvas.height = canvasHeight;
+    offscreenCanvasRef.current = offscreenCanvas;
+
+    // 프리즈 캔버스 생성
+    const freezeCanvas = document.createElement('canvas');
+    freezeCanvas.width = canvasWidth;
+    freezeCanvas.height = canvasHeight;
+    freezeCanvasRef.current = freezeCanvas;
+  }, [canvasWidth, canvasHeight]);
 
   const getCanvasPoint = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const container = containerRef.current;
@@ -68,48 +87,30 @@ export function Mochipad() {
     return currentLayer?.color || '#ccc';
   }, [layers, activeLayerId]);
 
-  const drawLine = (
-    start: { x: number; y: number },
-    end: { x: number; y: number }
-  ) => {
-    // 그리기용 활성 레이어는 직접 가져오기
-    const activeLayer = useMochipadStore.getState().getActiveLayer();
-    if (!activeLayer?.context) return;
-
-    const ctx = activeLayer.context;
-    ctx.save();
-    
-    ctx.beginPath();
-    ctx.moveTo(start.x, start.y);
-    ctx.lineTo(end.x, end.y);
-    ctx.strokeStyle = brushColor;
-    ctx.lineWidth = brushSize;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.globalAlpha = brushOpacity;
-    
-    ctx.stroke();
-    ctx.restore();
-  };
-
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (e.button !== 0 || isSpacePressed) return;
+    
+    const activeLayer = useMochipadStore.getState().getActiveLayer();
+    if (!activeLayer?.visible) return;
     
     setIsDrawing(true);
     const point = getCanvasPoint(e);
     setLastPoint(point);
     
-    // 그리기용 활성 레이어는 직접 가져오기
-    const activeLayer = useMochipadStore.getState().getActiveLayer();
-    if (activeLayer?.context) {
-      const ctx = activeLayer.context;
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(point.x, point.y, brushSize / 2, 0, Math.PI * 2);
-      ctx.fillStyle = brushColor;
-      ctx.globalAlpha = brushOpacity;
-      ctx.fill();
-      ctx.restore();
+    // 오프스크린 캔버스 초기화
+    const offscreenCanvas = offscreenCanvasRef.current;
+    if (offscreenCanvas) {
+      const ctx = offscreenCanvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+        ctx.beginPath();
+        ctx.moveTo(point.x, point.y);
+        ctx.strokeStyle = brushColor;
+        ctx.lineWidth = brushSize;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.globalAlpha = 1;
+      }
     }
   };
 
@@ -118,11 +119,46 @@ export function Mochipad() {
     if (!isMouseInCanvas) return;
     
     const currentPoint = getCanvasPoint(e);
-    drawLine(lastPoint, currentPoint);
+    const offscreenCanvas = offscreenCanvasRef.current;
+    const freezeCanvas = freezeCanvasRef.current;
+    const activeLayer = useMochipadStore.getState().getActiveLayer();
+    
+    if (offscreenCanvas && freezeCanvas && activeLayer?.context && activeLayer.visible) {
+      const offscreenCtx = offscreenCanvas.getContext('2d');
+      const ctx = activeLayer.context;
+      
+      if (offscreenCtx) {
+        // 오프스크린 캔버스에 선 그리기
+        offscreenCtx.lineTo(currentPoint.x, currentPoint.y);
+        offscreenCtx.stroke();
+        offscreenCtx.beginPath();
+        offscreenCtx.moveTo(currentPoint.x, currentPoint.y);
+
+        // 실제 레이어에 결과 표시
+        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+        ctx.globalAlpha = 1;
+        ctx.drawImage(freezeCanvas, 0, 0);
+        ctx.globalAlpha = brushOpacity;
+        ctx.drawImage(offscreenCanvas, 0, 0);
+      }
+    }
+    
     setLastPoint(currentPoint);
   };
 
   const handleMouseUp = () => {
+    const freezeCanvas = freezeCanvasRef.current;
+    const activeLayer = useMochipadStore.getState().getActiveLayer();
+    
+    if (freezeCanvas && activeLayer?.context) {
+      const freezeCtx = freezeCanvas.getContext('2d');
+      if (freezeCtx) {
+        // 현재 레이어의 상태를 프리즈 캔버스에 저장
+        freezeCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+        freezeCtx.drawImage(activeLayer.canvas!, 0, 0);
+      }
+    }
+    
     setIsDrawing(false);
     setLastPoint(null);
   };
@@ -318,6 +354,26 @@ export function Mochipad() {
       resizeObserver.disconnect();
     };
   }, [layers, canvasWidth, canvasHeight, scale, offset]);
+
+  // useEffect 추가 - 레이어 변경 감지
+  useEffect(() => {
+    const freezeCanvas = freezeCanvasRef.current;
+    if (!freezeCanvas) return;
+
+    const freezeCtx = freezeCanvas.getContext('2d');
+    if (!freezeCtx) return;
+
+    // freezeCanvas 초기화
+    freezeCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+    // 모든 visible 레이어를 순서대로 freezeCanvas에 그립니다
+    layers.forEach(layer => {
+      if (layer.visible && layer.canvas) {
+        freezeCtx.globalAlpha = layer.opacity;
+        freezeCtx.drawImage(layer.canvas, 0, 0);
+      }
+    });
+  }, [layers, canvasWidth, canvasHeight]); // layers 배열이 변경될 때마다 실행
 
   return (
     <div className="mochipad-container">
