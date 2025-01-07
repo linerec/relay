@@ -1,0 +1,58 @@
+.tab-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.tab-buttons {
+  display: flex;
+  border-bottom: 1px solid #ddd;
+}
+
+.tab-button {
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.tab-button.active {
+  border-bottom: 2px solid #007bff;
+  color: #007bff;
+}
+
+.tab-content {
+  flex: 1;
+  overflow: auto;
+}
+
+.history-panel {
+  height: 100%;
+  overflow-y: auto;
+}
+
+.history-list {
+  padding: 8px;
+}
+
+.history-item {
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  color: #333;
+  transition: all 0.2s ease;
+}
+
+.history-item:hover {
+  background-color: #f0f0f0;
+}
+
+.history-item.active {
+  background-color: #e3f2fd;
+  font-weight: 500;
+}
+
+.history-item.future {
+  color: #aaa;
+}

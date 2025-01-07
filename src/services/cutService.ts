@@ -47,3 +47,32 @@ export async function updateCut(cutId: string, updates: CutUpdate) {
 
   if (error) throw error;
 }
+
+export async function saveCutWithLayers(cutId: string, {
+  drawing,
+  background_color,
+  layer01,
+  layer02,
+  layer03,
+  layer04,
+  layer05,
+  ...rest
+}: CutUpdate) {
+  const updates = {
+    ...rest,
+    drawing, // 모든 레이어를 합친 미리보기 이미지
+    background_color,
+    layer01,
+    layer02,
+    layer03,
+    layer04,
+    layer05,
+  };
+
+  const { error } = await supabase
+    .from('cuts')
+    .update(updates)
+    .eq('id', cutId);
+
+  if (error) throw error;
+}

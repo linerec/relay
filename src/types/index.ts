@@ -12,6 +12,12 @@ export interface Cut {
   order_index: number;
   storyboard_text: string;
   drawing?: string;
+  background_color?: string;
+  layer01?: string;
+  layer02?: string;
+  layer03?: string;
+  layer04?: string;
+  layer05?: string;
   created_by: string;
   created_at: string;
   comics?: Comic;
@@ -24,8 +30,13 @@ export interface Cut {
 export interface CutUpdate {
   storyboard_text?: string;
   drawing?: string;
+  background_color?: string;
+  layer01?: string;
+  layer02?: string;
+  layer03?: string;
+  layer04?: string;
+  layer05?: string;
 }
-
 export interface User {
   id: string;
   email: string;

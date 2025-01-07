@@ -14,6 +14,12 @@ export function CutDetail() {
   const [formData, setFormData] = useState<CutUpdate>({
     storyboard_text: '',
     drawing: undefined,
+    background_color: '#ffffff',
+    layer01: undefined,
+    layer02: undefined,
+    layer03: undefined,
+    layer04: undefined,
+    layer05: undefined,
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isDrawingModified, setIsDrawingModified] = useState(false);
@@ -30,6 +36,12 @@ export function CutDetail() {
       setFormData({
         storyboard_text: data.storyboard_text,
         drawing: data.drawing,
+        background_color: data.background_color || '#ffffff',
+        layer01: data.layer01,
+        layer02: data.layer02,
+        layer03: data.layer03,
+        layer04: data.layer04,
+        layer05: data.layer05,
       });
       
       const { data: { user } } = await supabase.auth.getUser();
@@ -64,10 +76,21 @@ export function CutDetail() {
     }
   };
 
-  const handleDrawingChange = (drawing: string | undefined) => {
+  const handleDrawingChange = (
+    drawing: string | undefined, 
+    layers?: {
+      background_color?: string;
+      layer01?: string;
+      layer02?: string;
+      layer03?: string;
+      layer04?: string;
+      layer05?: string;
+    }
+  ) => {
     setFormData(prev => ({
       ...prev,
-      drawing
+      drawing,
+      ...layers,
     }));
     setIsDrawingModified(true);
   };
@@ -105,6 +128,14 @@ export function CutDetail() {
 
         <CutDrawing
           drawing={formData.drawing}
+          layers={{
+            background_color: formData.background_color,
+            layer01: formData.layer01,
+            layer02: formData.layer02,
+            layer03: formData.layer03,
+            layer04: formData.layer04,
+            layer05: formData.layer05,
+          }}
           onDrawingChange={handleDrawingChange}
         />
 
