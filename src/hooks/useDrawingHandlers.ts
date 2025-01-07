@@ -13,6 +13,7 @@ export function useDrawingHandlers() {
     brushColor,
     brushSize,
     brushOpacity,
+    offscreenContext,
   } = useMochipadStore();
 
   const getCanvasPoint = useCallback((clientX: number, clientY: number, drawableRect: DOMRect) => {
@@ -31,8 +32,9 @@ export function useDrawingHandlers() {
     
     const store = useMochipadStore.getState();
     const activeLayer = store.getActiveLayer();
-    if (!activeLayer?.visible) return;
+    if (!activeLayer?.visible || !store.offscreenContext) return;
 
+    console.log('Started drawing on offscreen canvas');
     drawingStarted.current = true;
     
     const drawableRect = e.currentTarget.getBoundingClientRect();
@@ -41,28 +43,29 @@ export function useDrawingHandlers() {
     setIsDrawing(true);
     setLastPoint(point);
 
-    const context = activeLayer.context;
-    if (context) {
-      context.beginPath();
-      context.moveTo(point.x, point.y);
-      context.strokeStyle = brushColor;
-      context.lineWidth = brushSize;
-      context.lineCap = 'round';
-      context.lineJoin = 'round';
-      context.globalAlpha = brushOpacity;
-
-      context.arc(point.x, point.y, brushSize / 2, 0, Math.PI * 2);
-      context.fill();
-      
-      //store.saveHistory();
-    }
+    // Offscreen Canvas와 화면의 canvas 모두에 그리기 시작
+    const context = store.offscreenContext;
+    const displayContext = (e.currentTarget.parentElement?.querySelector('.offscreen-canvas') as HTMLCanvasElement)?.getContext('2d');
+    
+    [context, displayContext].forEach(ctx => {
+      if (!ctx) return;
+      ctx.beginPath();
+      ctx.moveTo(point.x, point.y);
+      ctx.strokeStyle = brushColor;
+      ctx.lineWidth = brushSize;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.globalAlpha = 1;
+    });
+    
   }, [brushColor, brushSize, brushOpacity]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing || !lastPoint || !isMouseInCanvas) return;
 
-    const activeLayer = useMochipadStore.getState().getActiveLayer();
-    if (!activeLayer?.visible || !activeLayer.context) return;
+    const store = useMochipadStore.getState();
+    const activeLayer = store.getActiveLayer();
+    if (!activeLayer?.visible || !store.offscreenContext) return;
 
     if (drawingStarted.current) {
       drawingStarted.current = false;
@@ -71,22 +74,46 @@ export function useDrawingHandlers() {
     const drawableRect = e.currentTarget.getBoundingClientRect();
     const point = getCanvasPoint(e.clientX, e.clientY, drawableRect);
 
-    activeLayer.context.lineTo(point.x, point.y);
-    activeLayer.context.stroke();
-    activeLayer.context.beginPath();
-    activeLayer.context.moveTo(point.x, point.y);
+    // Offscreen Canvas와 화면의 canvas 모두에 그리기
+    const context = store.offscreenContext;
+    const displayContext = (e.currentTarget.parentElement?.querySelector('.offscreen-canvas') as HTMLCanvasElement)?.getContext('2d');
+    
+    [context, displayContext].forEach(ctx => {
+      if (!ctx) return;
+      ctx.lineTo(point.x, point.y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(point.x, point.y);
+    });
 
     setLastPoint(point);
   }, [isDrawing, lastPoint, isMouseInCanvas]);
 
   const handleMouseUp = useCallback(() => {
-    if (isDrawing) {
-      useMochipadStore.getState().saveHistory();
+    if (!isDrawing) return;
+
+    const store = useMochipadStore.getState();
+    const activeLayer = store.getActiveLayer();
+    
+    if (activeLayer?.context && store.offscreenCanvas) {
+      activeLayer.context.globalAlpha = brushOpacity;
+      activeLayer.context.drawImage(store.offscreenCanvas, 0, 0);
+      console.log(`Copied drawing to layer: ${activeLayer.name}`);
+      
+      // Offscreen Canvas와 화면의 canvas 모두 비우기
+      store.offscreenContext?.clearRect(0, 0, canvasWidth, canvasHeight);
+      const displayCanvas = document.querySelector('.offscreen-canvas') as HTMLCanvasElement;
+      const displayContext = displayCanvas?.getContext('2d');
+      displayContext?.clearRect(0, 0, canvasWidth, canvasHeight);
+      
+      // 히스토리 저장
+      store.saveHistory();
     }
+
     drawingStarted.current = false;
     setIsDrawing(false);
     setLastPoint(null);
-  }, [isDrawing]);
+  }, [isDrawing, canvasWidth, canvasHeight, brushOpacity]);
 
   return {
     isDrawing,

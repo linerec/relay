@@ -14,7 +14,6 @@ export function useMochipadLayers(initialLayers?: LayerData) {
   const {
     layers,
     addLayer,
-    initializeLayerCanvas,
     setActiveLayer,
     backgroundColor,
     setBackgroundColor,
@@ -74,20 +73,6 @@ export function useMochipadLayers(initialLayers?: LayerData) {
       layer.context?.drawImage(img, 0, 0);
     };
     img.src = imageData;
-  };
-
-  const loadColorToLayer = (layerId: string, color: string) => {
-    const layer = layers.find(l => l.id === layerId);
-    if (!layer || !layer.context) return;
-
-    // 캔버스 전체를 지정된 색상으로 채우기
-    layer.context.fillStyle = color;
-    layer.context.fillRect(
-      0, 
-      0, 
-      useMochipadStore.getState().canvasWidth,
-      useMochipadStore.getState().canvasHeight
-    );
   };
 
   const getLayerData = (): LayerData & { drawing?: string } => {

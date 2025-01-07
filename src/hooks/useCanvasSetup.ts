@@ -10,6 +10,7 @@ export function useCanvasSetup() {
     scale,
     offset,
     addLayer,
+    offscreenCanvas,
   } = useMochipadStore();
 
   // Initialize first layer if needed
@@ -55,6 +56,12 @@ export function useCanvasSetup() {
             layer.canvas.style.height = `${displayHeight}px`;
           }
         });
+
+        const offscreenElement = container.querySelector('.offscreen-canvas') as HTMLCanvasElement;
+        if (offscreenElement) {
+          offscreenElement.style.width = `${displayWidth}px`;
+          offscreenElement.style.height = `${displayHeight}px`;
+        }
       }
     };
 
@@ -72,7 +79,7 @@ export function useCanvasSetup() {
       }
       resizeObserver.disconnect();
     };
-  }, [layers, canvasWidth, canvasHeight, scale, offset]);
+  }, [layers, canvasWidth, canvasHeight, scale, offset, offscreenCanvas]);
 
   return containerRef;
 }

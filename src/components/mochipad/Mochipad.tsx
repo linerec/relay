@@ -14,8 +14,6 @@ interface MochipadProps {
 export function Mochipad({ onSave }: MochipadProps) {
   const containerRef = useCanvasSetup();
   const {
-    isDrawing,
-    isMouseInCanvas,
     setIsMouseInCanvas,
     handleMouseDown,
     handleMouseMove,
@@ -115,6 +113,21 @@ export function Mochipad({ onSave }: MochipadProps) {
                 onMouseUp={handleMouseUp}
               />
             ))}
+            <canvas
+              ref={(canvas) => {
+                if (canvas && !useMochipadStore.getState().offscreenCanvas) {
+                  canvas.width = useMochipadStore.getState().canvasWidth;
+                  canvas.height = useMochipadStore.getState().canvasHeight;
+                  useMochipadStore.getState().initializeOffscreenCanvas();
+                }
+              }}
+              className="mochipad-canvas-layer offscreen-canvas"
+              style={{
+                zIndex: layers.length,
+                pointerEvents: 'none',
+                opacity: useMochipadStore.getState().brushOpacity
+              }}
+            />
           </div>
         </div>
         <TabPanel />

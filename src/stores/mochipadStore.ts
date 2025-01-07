@@ -31,6 +31,8 @@ interface MochipadState {
   backgroundLayer: Layer | null;
   history: HistoryState[];
   historyIndex: number;
+  offscreenCanvas: HTMLCanvasElement | null;
+  offscreenContext: CanvasRenderingContext2D | null;
   
   // Actions
   addLayer: () => Layer;
@@ -65,6 +67,7 @@ interface MochipadState {
   undo: () => void;
   redo: () => void;
   moveToHistoryIndex: (index: number) => void;
+  initializeOffscreenCanvas: () => void;
 }
 
 const generateRandomColor = () => {
@@ -88,6 +91,8 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
   backgroundLayer: null,
   history: [],
   historyIndex: -1,
+  offscreenCanvas: null,
+  offscreenContext: null,
 
   addLayer: () => {
     const newLayer: Layer = {
@@ -387,6 +392,7 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
     if (index === -1) {
       const updatedLayers = state.layers.map(layer => {
         if (layer.canvas && layer.context) {
+          layer.context.globalAlpha = 1;
           layer.context.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
         }
         return layer;
@@ -405,6 +411,7 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
     const updatedLayers = state.layers.map(layer => {
       if (!layer.canvas || !layerImages[layer.id]) {
         if (layer.canvas && layer.context) {
+          layer.context.globalAlpha = 1;
           layer.context.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
         }
         return layer;
@@ -413,12 +420,16 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
       const ctx = layer.canvas.getContext('2d');
       if (!ctx) return layer;
 
+      ctx.globalAlpha = 1;
       ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
 
       const loadPromise = new Promise<void>((resolve) => {
         const img = new Image();
         img.onload = () => {
-          ctx.drawImage(img, 0, 0);
+          if (ctx) {
+            ctx.globalAlpha = 1;
+            ctx.drawImage(img, 0, 0);
+          }
           resolve();
         };
         img.src = layerImages[layer.id];
@@ -434,5 +445,19 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
         layers: updatedLayers
       });
     });
+  },
+
+  initializeOffscreenCanvas: () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = get().canvasWidth;
+    canvas.height = get().canvasHeight;
+    const context = canvas.getContext('2d');
+
+    if (context) {
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
+    }
+
+    set({ offscreenCanvas: canvas, offscreenContext: context });
   }
 }));
