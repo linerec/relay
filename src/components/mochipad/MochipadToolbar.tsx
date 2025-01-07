@@ -7,10 +7,10 @@ import { SizeSlider } from '../drawing/SizeSlider';
 import { ColorPicker } from '../drawing/ColorPicker';
 
 interface MochipadToolbarProps {
-    onSave?: () => void;
-  }
+  // onSave prop 제거
+}
 
-export function MochipadToolbar({ onSave }: MochipadToolbarProps) {
+export function MochipadToolbar() {
   const {
     brushSize,
     brushColor,
@@ -57,14 +57,6 @@ export function MochipadToolbar({ onSave }: MochipadToolbarProps) {
           onChange={setBrushColor}
         />
       </div>
-      {onSave && (
-        <Button
-          variant="primary"
-          onClick={onSave}
-        >
-          Save
-        </Button>
-      )}
     </div>
   );
 } 

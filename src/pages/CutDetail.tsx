@@ -1,161 +1,112 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { Container, Form, Button } from 'react-bootstrap';
 import { fetchCutById, updateCut } from '../services/cutService';
-import { Cut, CutUpdate } from '../types';
-import { CutDrawing } from '../components/cuts/CutDrawing';
-import { supabase } from '../lib/supabase';
+import { Cut } from '../types';
+import { Mochipad } from '../components/mochipad/Mochipad';
+import { useMochipadStore } from '../stores/mochipadStore';
 
 export function CutDetail() {
-  const { comicId, cutId } = useParams<{ comicId: string; cutId: string }>();
-  const navigate = useNavigate();
+  const { cutId } = useParams<{ cutId: string }>();
   const [cut, setCut] = useState<Cut | null>(null);
-  const [canEdit, setCanEdit] = useState(false);
-  const [formData, setFormData] = useState<CutUpdate>({
-    storyboard_text: '',
-    drawing: undefined,
-    background_color: '#ffffff',
-    layer01: undefined,
-    layer02: undefined,
-    layer03: undefined,
-    layer04: undefined,
-    layer05: undefined,
-  });
-  const [isSaving, setIsSaving] = useState(false);
-  const [isDrawingModified, setIsDrawingModified] = useState(false);
+  const [storyboardText, setStoryboardText] = useState('');
 
   useEffect(() => {
+    if (!cutId) return;
+
+    const loadCut = async () => {
+      try {
+        const cutData = await fetchCutById(cutId);
+        setCut(cutData);
+        setStoryboardText(cutData.storyboard_text || '');
+      } catch (error) {
+        console.error('Error loading cut:', error);
+      }
+    };
+
     loadCut();
   }, [cutId]);
 
-  const loadCut = async () => {
-    if (!cutId) return;
-    try {
-      const data = await fetchCutById(cutId);
-      setCut(data);
-      setFormData({
-        storyboard_text: data.storyboard_text,
-        drawing: data.drawing,
-        background_color: data.background_color || '#ffffff',
-        layer01: data.layer01,
-        layer02: data.layer02,
-        layer03: data.layer03,
-        layer04: data.layer04,
-        layer05: data.layer05,
-      });
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (data.comics) {
-        const isOwner = user?.id === data.comics.owner_id;
-        const isCollaborator = data.comics.collaborators?.includes(user?.id);
-        setCanEdit(isOwner || isCollaborator);
-      }
-    } catch (error) {
-      console.error('Error loading cut:', error);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cutId) return;
-
-    if (!canEdit) {
-      alert('수정 권한이 없습니다.');
-      return;
-    }
+    if (!cutId || !cut) return;
 
     try {
-      setIsSaving(true);
-      await updateCut(cutId, formData);
-      setIsDrawingModified(false);
-      navigate(`/comics/${comicId}/cuts`);
+      console.log('Starting form submission...');
+      
+      // 1. 먼저 Mochipad의 그림 데이터를 가져옴
+      const store = useMochipadStore.getState();
+      const { layerData, mergedImage } = store.getLayerData();
+      
+      console.log('Got drawing data:', {
+        hasLayers: Object.values(layerData).some(layer => layer !== null),
+        mergedImageSize: mergedImage.length
+      });
+
+      // 2. 모든 데이터를 한번에 업데이트
+      await updateCut(cutId, {
+        storyboard_text: storyboardText,
+        drawing: mergedImage,
+        layer01: layerData.layer01 ? JSON.stringify(layerData.layer01) : undefined,
+        layer02: layerData.layer02 ? JSON.stringify(layerData.layer02) : undefined,
+        layer03: layerData.layer03 ? JSON.stringify(layerData.layer03) : undefined,
+        layer04: layerData.layer04 ? JSON.stringify(layerData.layer04) : undefined,
+        layer05: layerData.layer05 ? JSON.stringify(layerData.layer05) : undefined,
+        background_color: store.backgroundColor
+      });
+
+      console.log('Cut updated successfully');
+      
+      // 3. 상태 업데이트
+      setCut(prevCut => {
+        if (!prevCut) return null;
+        return {
+          ...prevCut,
+          storyboard_text: storyboardText,
+          drawing: mergedImage,
+          layer01: layerData.layer01 ? JSON.stringify(layerData.layer01) : undefined,
+          layer02: layerData.layer02 ? JSON.stringify(layerData.layer02) : undefined,
+          layer03: layerData.layer03 ? JSON.stringify(layerData.layer03) : undefined,
+          layer04: layerData.layer04 ? JSON.stringify(layerData.layer04) : undefined,
+          layer05: layerData.layer05 ? JSON.stringify(layerData.layer05) : undefined,
+          background_color: store.backgroundColor
+        };
+      });
+
     } catch (error) {
       console.error('Error updating cut:', error);
-    } finally {
-      setIsSaving(false);
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
+        console.error('Error stack:', error.stack);
+      }
     }
-  };
-
-  const handleDrawingChange = (
-    drawing: string | undefined, 
-    layers?: {
-      background_color?: string;
-      layer01?: string;
-      layer02?: string;
-      layer03?: string;
-      layer04?: string;
-      layer05?: string;
-    }
-  ) => {
-    setFormData(prev => ({
-      ...prev,
-      drawing,
-      ...layers,
-    }));
-    setIsDrawingModified(true);
-  };
-
-  const handleBack = () => {
-    if (isDrawingModified) {
-      const confirmed = window.confirm('You have unsaved changes. Are you sure you want to leave?');
-      if (!confirmed) return;
-    }
-    navigate(`/comics/${comicId}/cuts`);
   };
 
   if (!cut) return <div>Loading...</div>;
 
   return (
-    <Container className="py-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h1>Edit Cut</h1>
-      </div>
-
+    <Container>
       <Form onSubmit={handleSubmit}>
-        <Form.Group className="mb-4">
+        <Form.Group className="mb-3">
           <Form.Label>Storyboard Text</Form.Label>
           <Form.Control
             as="textarea"
             rows={3}
-            value={formData.storyboard_text}
-            onChange={(e) => setFormData(prev => ({
-              ...prev,
-              storyboard_text: e.target.value
-            }))}
-            disabled={!canEdit}
+            value={storyboardText}
+            onChange={(e) => setStoryboardText(e.target.value)}
           />
         </Form.Group>
 
-        <CutDrawing
-          drawing={formData.drawing}
-          layers={{
-            background_color: formData.background_color,
-            layer01: formData.layer01,
-            layer02: formData.layer02,
-            layer03: formData.layer03,
-            layer04: formData.layer04,
-            layer05: formData.layer05,
-          }}
-          onDrawingChange={handleDrawingChange}
-        />
-
-        <div className="d-flex gap-2">
-          <Button
-            variant="secondary"
-            onClick={handleBack}
-          >
-            Back
-          </Button>
-          {canEdit && (
-            <Button 
-              type="submit" 
-              variant="primary"
-              disabled={isSaving}
-            >
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </Button>
-          )}
+        <div className="mb-3">
+          <Mochipad
+            cutId={cutId}
+            comicId={cut.comic_id}
+          />
         </div>
+
+        <Button variant="primary" type="submit">
+          Save Changes
+        </Button>
       </Form>
     </Container>
   );

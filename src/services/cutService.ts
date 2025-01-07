@@ -40,12 +40,42 @@ export async function fetchCutById(cutId: string) {
 }
 
 export async function updateCut(cutId: string, updates: CutUpdate) {
-  const { error } = await supabase
-    .from('cuts')
-    .update(updates)
-    .eq('id', cutId);
+  console.log('Updating cut:', cutId);
+  console.log('Update data:', {
+    ...updates,
+    hasDrawing: !!updates.drawing,
+    drawingSize: updates.drawing?.length,
+    hasLayers: {
+      layer01: !!updates.layer01,
+      layer02: !!updates.layer02,
+      layer03: !!updates.layer03,
+      layer04: !!updates.layer04,
+      layer05: !!updates.layer05,
+    }
+  });
 
-  if (error) throw error;
+  try {
+    const { error } = await supabase
+      .from('cuts')
+      .update({
+        ...updates,
+      })
+      .eq('id', cutId);
+
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
+
+    console.log('Cut updated successfully');
+  } catch (error) {
+    console.error('Error in updateCut:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    throw error;
+  }
 }
 
 export async function saveCutWithLayers(cutId: string, {
@@ -76,3 +106,68 @@ export async function saveCutWithLayers(cutId: string, {
 
   if (error) throw error;
 }
+
+interface SaveCutData {
+  id?: string;
+  comic_id?: string;
+  layer01: string | null;
+  layer02: string | null;
+  layer03: string | null;
+  layer04: string | null;
+  layer05: string | null;
+  drawing: string;
+  background_color: string;
+}
+
+export const saveCut = async (cutData: SaveCutData) => {
+  console.log('saveCut called with:', {
+    id: cutData.id,
+    comic_id: cutData.comic_id,
+    hasLayer01: !!cutData.layer01,
+    hasLayer02: !!cutData.layer02,
+    hasLayer03: !!cutData.layer03,
+    hasLayer04: !!cutData.layer04,
+    hasLayer05: !!cutData.layer05,
+    drawingSize: cutData.drawing.length,
+    background_color: cutData.background_color
+  });
+
+  if (!cutData.id && !cutData.comic_id) {
+    console.error('Missing both id and comic_id');
+    throw new Error('Either id or comic_id must be provided');
+  }
+
+  try {
+    console.log('Sending upsert request to supabase...');
+    const { data, error } = await supabase
+      .from('cuts')
+      .upsert({
+        id: cutData.id,
+        comic_id: cutData.comic_id,
+        layer01: cutData.layer01 ? JSON.stringify(cutData.layer01) : null,
+        layer02: cutData.layer02 ? JSON.stringify(cutData.layer02) : null,
+        layer03: cutData.layer03 ? JSON.stringify(cutData.layer03) : null,
+        layer04: cutData.layer04 ? JSON.stringify(cutData.layer04) : null,
+        layer05: cutData.layer05 ? JSON.stringify(cutData.layer05) : null,
+        drawing: cutData.drawing,
+        background_color: cutData.background_color,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
+
+    console.log('Save successful, returned data:', data);
+    return data;
+  } catch (error) {
+    console.error('Error in saveCut:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    throw error;
+  }
+};

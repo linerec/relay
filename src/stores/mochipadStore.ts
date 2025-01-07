@@ -17,6 +17,14 @@ interface HistoryState {
   description?: string;
 }
 
+interface LayerData {
+  imageData: string;  // base64 이미지 데이터
+  name: string;
+  visible: boolean;
+  opacity: number;
+  locked: boolean;
+}
+
 interface MochipadState {
   layers: Layer[];
   activeLayerId: string | null;
@@ -68,6 +76,10 @@ interface MochipadState {
   redo: () => void;
   moveToHistoryIndex: (index: number) => void;
   initializeOffscreenCanvas: () => void;
+  getLayerData: () => { 
+    layerData: { [key: string]: LayerData | null };
+    mergedImage: string;
+  };
 }
 
 const generateRandomColor = () => {
@@ -459,5 +471,56 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
     }
 
     set({ offscreenCanvas: canvas, offscreenContext: context });
-  }
+  },
+
+  getLayerData: () => {
+    const state = get();
+    const layerData: { [key: string]: LayerData | null } = {
+      layer01: null,
+      layer02: null,
+      layer03: null,
+      layer04: null,
+      layer05: null
+    };
+
+    // 각 레이어의 데이터를 JSON 형식으로 변환
+    state.layers.forEach((layer, index) => {
+      const layerKey = `layer${String(index + 1).padStart(2, '0')}`;
+      
+      if (layer.canvas) {
+        layerData[layerKey] = {
+          imageData: layer.canvas.toDataURL('image/png'),
+          name: layer.name,
+          visible: layer.visible,
+          opacity: layer.opacity,
+          locked: layer.locked
+        };
+      }
+    });
+
+    // 모든 레이어를 합친 이미지 생성
+    const mergedCanvas = document.createElement('canvas');
+    mergedCanvas.width = state.canvasWidth;
+    mergedCanvas.height = state.canvasHeight;
+    const mergedContext = mergedCanvas.getContext('2d');
+
+    if (mergedContext) {
+      // 배경색 먼저 채우기
+      mergedContext.fillStyle = state.backgroundColor;
+      mergedContext.fillRect(0, 0, state.canvasWidth, state.canvasHeight);
+
+      // 각 레이어 순서대로 그리기
+      state.layers.forEach(layer => {
+        if (layer.visible && layer.canvas) {
+          mergedContext.globalAlpha = layer.opacity;
+          mergedContext.drawImage(layer.canvas, 0, 0);
+        }
+      });
+    }
+
+    return {
+      layerData,
+      mergedImage: mergedCanvas.toDataURL('image/png')
+    };
+  },
 }));
