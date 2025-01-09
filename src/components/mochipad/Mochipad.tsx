@@ -1,12 +1,12 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { MochipadToolbar } from './MochipadToolbar';
 import { TabPanel } from './TabPanel';
 import { useCanvasSetup } from '../../hooks/useCanvasSetup';
 import { useDrawingHandlers } from '../../hooks/useDrawingHandlers';
 import { usePanAndZoom } from '../../hooks/usePanAndZoom';
 import { useMochipadStore } from '../../stores/mochipadStore';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import './mochipad.css';
-import { saveCut } from '../../services/cutService';
 
 interface MochipadProps {
   cutId?: string;
@@ -34,81 +34,7 @@ export function Mochipad({ cutId, comicId }: MochipadProps) {
 
   const { layers, activeLayerId } = useMochipadStore();
 
-  // Keyboard event handlers
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !e.repeat) {
-        e.preventDefault();
-        setIsSpacePressed(true);
-      }
-
-      if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'z') {
-        e.preventDefault();
-        useMochipadStore.getState().undo();
-      }
-      if (e.ctrlKey && e.key.toLowerCase() === 'y') {
-        e.preventDefault();
-        useMochipadStore.getState().redo();
-      }
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
-        e.preventDefault();
-        setIsSpacePressed(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, []);
-
-  const handleSave = async () => {
-    console.log('Starting save process...');
-    console.log('Cut ID:', cutId);
-    console.log('Comic ID:', comicId);
-    
-    const store = useMochipadStore.getState();
-    console.log('Getting layer data...');
-    const { layerData, mergedImage } = store.getLayerData();
-    
-    console.log('Layer data retrieved:', {
-      layer01: layerData.layer01 ? 'exists' : 'null',
-      layer02: layerData.layer02 ? 'exists' : 'null',
-      layer03: layerData.layer03 ? 'exists' : 'null',
-      layer04: layerData.layer04 ? 'exists' : 'null',
-      layer05: layerData.layer05 ? 'exists' : 'null',
-    });
-    console.log('Merged image size:', mergedImage.length, 'bytes');
-    
-    try {
-      console.log('Attempting to save to database...');
-      const savedData = await saveCut({
-        id: cutId,
-        comic_id: comicId,
-        layer01: layerData.layer01,
-        layer02: layerData.layer02,
-        layer03: layerData.layer03,
-        layer04: layerData.layer04,
-        layer05: layerData.layer05,
-        drawing: mergedImage,
-        background_color: store.backgroundColor
-      });
-      
-      console.log('Save successful:', savedData);
-    } catch (error) {
-      console.error('Failed to save:', error);
-      if (error instanceof Error) {
-        console.error('Error details:', error.message);
-        console.error('Error stack:', error.stack);
-      }
-    }
-  };
+  useKeyboardShortcuts({ setIsSpacePressed });
 
   return (
     <div className="mochipad-container">
