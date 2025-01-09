@@ -1,7 +1,11 @@
 import { useState, useCallback, useRef } from 'react';
 import { useMochipadStore } from '../stores/mochipadStore';
 
-export function useDrawingHandlers() {
+interface DrawingHandlersProps {
+  isSpacePressed?: boolean;
+}
+
+export function useDrawingHandlers({ isSpacePressed }: DrawingHandlersProps = {}) {
   const [isDrawing, setIsDrawing] = useState(false);
   const [lastPoint, setLastPoint] = useState<{ x: number; y: number } | null>(null);
   const [isMouseInCanvas, setIsMouseInCanvas] = useState(false);
@@ -28,6 +32,7 @@ export function useDrawingHandlers() {
   }, [canvasWidth, canvasHeight]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isSpacePressed) return;
     if (e.button !== 0) return;
     
     const store = useMochipadStore.getState();
@@ -58,9 +63,10 @@ export function useDrawingHandlers() {
       ctx.globalAlpha = 1;
     });
     
-  }, [brushColor, brushSize, brushOpacity]);
+  }, [brushColor, brushSize, brushOpacity, isSpacePressed]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isSpacePressed) return;
     if (!isDrawing || !lastPoint || !isMouseInCanvas) return;
 
     const store = useMochipadStore.getState();
@@ -87,9 +93,10 @@ export function useDrawingHandlers() {
     });
 
     setLastPoint(point);
-  }, [isDrawing, lastPoint, isMouseInCanvas]);
+  }, [isDrawing, lastPoint, isMouseInCanvas, isSpacePressed]);
 
   const handleMouseUp = useCallback(() => {
+    if (isSpacePressed) return;
     if (!isDrawing) return;
 
     const store = useMochipadStore.getState();
@@ -113,7 +120,7 @@ export function useDrawingHandlers() {
     drawingStarted.current = false;
     setIsDrawing(false);
     setLastPoint(null);
-  }, [isDrawing, canvasWidth, canvasHeight, brushOpacity]);
+  }, [isDrawing, canvasWidth, canvasHeight, brushOpacity, isSpacePressed]);
 
   return {
     isDrawing,

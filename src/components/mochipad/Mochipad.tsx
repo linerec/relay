@@ -15,13 +15,7 @@ interface MochipadProps {
 
 export function Mochipad({ cutId, comicId }: MochipadProps) {
   const containerRef = useCanvasSetup();
-  const {
-    setIsMouseInCanvas,
-    handleMouseDown,
-    handleMouseMove,
-    handleMouseUp,
-  } = useDrawingHandlers();
-
+  
   const {
     isSpacePressed,
     setIsSpacePressed,
@@ -31,6 +25,13 @@ export function Mochipad({ cutId, comicId }: MochipadProps) {
     handleDrag,
     handleDragEnd,
   } = usePanAndZoom();
+
+  const {
+    setIsMouseInCanvas,
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+  } = useDrawingHandlers({ isSpacePressed });
 
   const { layers, activeLayerId } = useMochipadStore();
 
