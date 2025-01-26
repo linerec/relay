@@ -14,7 +14,7 @@ export function useDrawingHandlers({ isSpacePressed }: DrawingHandlersProps = {}
   const [isDrawing, setIsDrawing] = useState(false);          // 현재 마우스를 누른 상태로 그리기 중인지 여부
   const [lastPoint, setLastPoint] = useState<{ x: number; y: number } | null>(null);  // 연속된 선을 그리기 위해 이전 점의 좌표를 저장
   const [isMouseInCanvas, setIsMouseInCanvas] = useState(false);  // 마우스가 캔버스를 벗어났을 때 그리기를 중단하기 위한 상태
-  
+
   // useRef를 사용하여 렌더링과 무관하게 그리기 시작 상태를 추적
   // 불필요한 렌더링을 방지하고 그리기 시작 시점을 정확히 파악하기 위해 사용
   const drawingStarted = useRef(false);
@@ -37,13 +37,11 @@ export function useDrawingHandlers({ isSpacePressed }: DrawingHandlersProps = {}
     // clientX/Y는 브라우저 창 기준 좌표, drawableRect.left/top을 빼서 캔버스 기준 좌표로 변환
     const relativeX = clientX - drawableRect.left;
     const relativeY = clientY - drawableRect.top;
-    
+
     // 화면에 표시되는 캔버스 크기와 실제 캔버스 해상도의 비율 계산
     // 이 비율을 사용하여 화면 좌표를 실제 캔버스 좌표로 변환
     const displayToCanvasRatio = canvasWidth / drawableRect.width;
 
-    // 계산된 좌표가 캔버스 영역을 벗어나지 않도록 제한하여 반환
-    // Math.max와 Math.min을 사용하여 좌표값을 캔버스 크기 범위 내로 제한
     return {
       x: Math.max(0, Math.min(canvasWidth, relativeX * displayToCanvasRatio)),
       y: Math.max(0, Math.min(canvasHeight, relativeY * displayToCanvasRatio))
@@ -58,7 +56,7 @@ export function useDrawingHandlers({ isSpacePressed }: DrawingHandlersProps = {}
     // 오직 왼쪽 마우스 버튼으로만 그리기가 가능하도록 제한
     if (isSpacePressed) return;
     if (e.button !== 0) return;
-    
+
     // 현재 활성화된 레이어 정보를 가져와서 그리기가 가능한 상태인지 확인
     // 레이어가 보이지 않거나 오프스크린 컨텍스트가 없으면 그리기 불가
     const store = useMochipadStore.getState();
@@ -67,12 +65,12 @@ export function useDrawingHandlers({ isSpacePressed }: DrawingHandlersProps = {}
 
     console.log('Started drawing on offscreen canvas');
     drawingStarted.current = true;
-    
+
     // 마우스가 눌린 위치를 캔버스 좌표로 변환
     // 이 좌표는 실제 그리기가 시작되는 지점
     const drawableRect = e.currentTarget.getBoundingClientRect();
     const point = getCanvasPoint(e.clientX, e.clientY, drawableRect);
-    
+
     // 그리기 상태를 활성화하고 시작점을 저장
     // 이 정보는 마우스 이동 시 연속된 선을 그리는데 사용됨
     setIsDrawing(true);
@@ -83,7 +81,7 @@ export function useDrawingHandlers({ isSpacePressed }: DrawingHandlersProps = {}
     // 화면의 임시 캔버스는 실시간으로 그리기 과정을 보여줌
     const context = store.offscreenContext;
     const displayContext = (e.currentTarget.parentElement?.querySelector('.offscreen-canvas') as HTMLCanvasElement)?.getContext('2d');
-    
+
     // 두 캔버스 모두에 동일한 브러시 설정을 적용
     // 이렇게 함으로써 실시간 미리보기와 최종 결과물이 동일하게 표시됨
     [context, displayContext].forEach(ctx => {
@@ -96,19 +94,15 @@ export function useDrawingHandlers({ isSpacePressed }: DrawingHandlersProps = {}
       ctx.lineJoin = 'round';             // 선이 꺾이는 부분을 둥글게 처리
       ctx.globalAlpha = 1;                // 선의 투명도를 불투명하게 설정
     });
-    
+
   }, [brushColor, brushSize, brushOpacity, isSpacePressed]);
 
   // 마우스 이동 시 호출되는 이벤트 핸들러
   // 이전 점과 현재 점 사이에 선을 그려 연속된 선을 만듦
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    // 그리기가 불가능한 상태면 종시 종료
-    // 스페이스바가 눌렸거나, 그리기 중이 아니거나, 
-    // 이전 점이 없거나, 마우스가 캔버스를 벗어난 경우
     if (isSpacePressed) return;
     if (!isDrawing || !lastPoint || !isMouseInCanvas) return;
 
-    // 현재 레이어 상태 확인
     const store = useMochipadStore.getState();
     const activeLayer = store.getActiveLayer();
     if (!activeLayer?.visible || !store.offscreenContext) return;
@@ -123,53 +117,44 @@ export function useDrawingHandlers({ isSpacePressed }: DrawingHandlersProps = {}
     const drawableRect = e.currentTarget.getBoundingClientRect();
     const point = getCanvasPoint(e.clientX, e.clientY, drawableRect);
 
-    // 오프스크린 캔버스와 화면 캔버스 모두에 선 그리기
-    // 두 캔버스를 동시에 업데이트하여 실시간으로 그리기 과정을 표시
     const context = store.offscreenContext;
     const displayContext = (e.currentTarget.parentElement?.querySelector('.offscreen-canvas') as HTMLCanvasElement)?.getContext('2d');
-    
+
     [context, displayContext].forEach(ctx => {
       if (!ctx) return;
-      ctx.lineTo(point.x, point.y);   // 이전 점에서 현재 점까지 선을 그림
-      ctx.stroke();                    // 실제로 선을 캔버스에 그림
-      ctx.beginPath();                 // 다음 선 그리기를 위해 새로운 패스 시작
-      ctx.moveTo(point.x, point.y);    // 다음 선의 시작점을 현재 점으로 설정
+      ctx.lineTo(point.x, point.y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(point.x, point.y);
     });
 
-    // 다음 이동을 위해 현재 점을 마지막 점으로 저장
     setLastPoint(point);
   }, [isDrawing, lastPoint, isMouseInCanvas, isSpacePressed]);
 
   // 마우스 버튼을 뗐을 때 호출되는 이벤트 핸들러
   // 현재까지 그린 내용을 실제 레이어에 적용하고 상태를 초기화
   const handleMouseUp = useCallback(() => {
-    // 그리기가 불가능한 상태면 종료
     if (isSpacePressed) return;
     if (!isDrawing) return;
 
     const store = useMochipadStore.getState();
     const activeLayer = store.getActiveLayer();
-    
-    // 오프스크린 캔버스의 내용을 실제 레이어에 복사
-    // 이 과정에서 브러시의 투명도가 적용됨
+
     if (activeLayer?.context && store.offscreenCanvas) {
-      activeLayer.context.globalAlpha = brushOpacity;  // 최종 투명도 설정
-      activeLayer.context.drawImage(store.offscreenCanvas, 0, 0);  // 그린 내용을 레이어에 복사
-      console.log(`Copied drawing to layer: ${activeLayer.name}`);
-      
-      // 임시로 사용한 오프스크린 캔버스들을 초기화
-      // 다음 그리기를 위해 깨끗한 상태로 만듦
+      // 레이어 컨텍스트 설정 초기화
+      activeLayer.context.globalAlpha = brushOpacity;
+
+      // 오프스크린 캔버스의 내용을 레이어에 복사
+      activeLayer.context.drawImage(store.offscreenCanvas, 0, 0);
+      // 오프스크린 캔버스 초기화
       store.offscreenContext?.clearRect(0, 0, canvasWidth, canvasHeight);
       const displayCanvas = document.querySelector('.offscreen-canvas') as HTMLCanvasElement;
       const displayContext = displayCanvas?.getContext('2d');
       displayContext?.clearRect(0, 0, canvasWidth, canvasHeight);
-      
-      // 현재 상태를 히스토리에 저장하여 실행 취소/다시 실행이 가능하게 함
+
       store.saveHistory();
     }
 
-    // 모든 그리기 관련 상태를 초기화
-    // 다음 그리기 작업을 위해 초기 상태로 되돌림
     drawingStarted.current = false;
     setIsDrawing(false);
     setLastPoint(null);

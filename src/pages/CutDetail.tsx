@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Form, Button } from 'react-bootstrap';
 import { fetchCutById, updateCut } from '../services/cutService';
-import { Cut } from '../types';
+import { Cut, LayerData } from '../types';
 import { Mochipad } from '../components/mochipad/Mochipad';
 import { useMochipadStore } from '../stores/mochipadStore';
 
 export function CutDetail() {
+  const navigate = useNavigate();
   const { cutId } = useParams<{ cutId: string }>();
   const [storyboardText, setStoryboardText] = useState('');
   const store = useMochipadStore();
@@ -33,16 +34,15 @@ export function CutDetail() {
       await updateCut(cutId, {
         storyboard_text: storyboardText,
         drawing: mergedImage,
-        layer01: layerData.layer01 ? JSON.stringify(layerData.layer01) : undefined,
-        layer02: layerData.layer02 ? JSON.stringify(layerData.layer02) : undefined,
-        layer03: layerData.layer03 ? JSON.stringify(layerData.layer03) : undefined,
-        layer04: layerData.layer04 ? JSON.stringify(layerData.layer04) : undefined,
-        layer05: layerData.layer05 ? JSON.stringify(layerData.layer05) : undefined,
+        layers_data: Object.values(layerData).filter((layer): layer is LayerData => layer !== null),
         background_color: store.backgroundColor
       });
 
       // cut 데이터 업데이트
       store.loadCut(cutId);
+
+      // Cut List 페이지로 이동
+      navigate('/cuts');
     } catch (error) {
       console.error('Error updating cut:', error);
     }

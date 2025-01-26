@@ -52,13 +52,7 @@ export async function updateCut(cutId: string, updates: CutUpdate) {
     ...updates,
     hasDrawing: !!updates.drawing,
     drawingSize: updates.drawing?.length,
-    hasLayers: {
-      layer01: !!updates.layer01,
-      layer02: !!updates.layer02,
-      layer03: !!updates.layer03,
-      layer04: !!updates.layer04,
-      layer05: !!updates.layer05,
-    }
+    layersCount: updates.layers_data?.length
   });
 
   try {
@@ -117,11 +111,7 @@ export async function saveCutWithLayers(cutId: string, {
 interface SaveCutData {
   id?: string;
   comic_id?: string;
-  layer01: string | null;
-  layer02: string | null;
-  layer03: string | null;
-  layer04: string | null;
-  layer05: string | null;
+  layers_data: LayerData[];
   drawing: string;
   background_color: string;
 }
@@ -130,11 +120,7 @@ export const saveCut = async (cutData: SaveCutData) => {
   console.log('saveCut called with:', {
     id: cutData.id,
     comic_id: cutData.comic_id,
-    hasLayer01: !!cutData.layer01,
-    hasLayer02: !!cutData.layer02,
-    hasLayer03: !!cutData.layer03,
-    hasLayer04: !!cutData.layer04,
-    hasLayer05: !!cutData.layer05,
+    layersCount: cutData.layers_data.length,
     drawingSize: cutData.drawing.length,
     background_color: cutData.background_color
   });
@@ -151,11 +137,7 @@ export const saveCut = async (cutData: SaveCutData) => {
       .upsert({
         id: cutData.id,
         comic_id: cutData.comic_id,
-        layer01: cutData.layer01 ? JSON.stringify(cutData.layer01) : null,
-        layer02: cutData.layer02 ? JSON.stringify(cutData.layer02) : null,
-        layer03: cutData.layer03 ? JSON.stringify(cutData.layer03) : null,
-        layer04: cutData.layer04 ? JSON.stringify(cutData.layer04) : null,
-        layer05: cutData.layer05 ? JSON.stringify(cutData.layer05) : null,
+        layers_data: cutData.layers_data,
         drawing: cutData.drawing,
         background_color: cutData.background_color,
       })

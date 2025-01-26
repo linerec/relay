@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { MochipadToolbar } from './MochipadToolbar';
 import { TabPanel } from './TabPanel';
 import { useCanvasSetup } from '../../hooks/useCanvasSetup';
@@ -7,6 +7,7 @@ import { usePanAndZoom } from '../../hooks/usePanAndZoom';
 import { useMochipadStore } from '../../stores/mochipadStore';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import './mochipad.css';
+import { Layer } from '../../stores/mochipadStore';
 
 interface MochipadProps {
   cutId?: string;
@@ -16,7 +17,6 @@ interface MochipadProps {
 
 export function Mochipad({ cutId, comicId, cutData }: MochipadProps) {
   const containerRef = useCanvasSetup();
-  const store = useMochipadStore();
 
   const {
     isSpacePressed,
@@ -35,9 +35,50 @@ export function Mochipad({ cutId, comicId, cutData }: MochipadProps) {
     handleMouseUp,
   } = useDrawingHandlers({ isSpacePressed });
 
-  const { layers, activeLayerId } = useMochipadStore();
+  const {
+    layers,
+    activeLayerId,
+    canvasWidth,
+    canvasHeight,
+    initializeLayerCanvas
+  } = useMochipadStore();
 
   useKeyboardShortcuts({ setIsSpacePressed });
+
+  const isDev = import.meta.env.VITE_DEV_MODE === 'true';
+
+  const renderLayerName = useCallback((ctx: CanvasRenderingContext2D, layer: Layer) => {
+    if (!isDev) return;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(5, 5, ctx.measureText(layer.name).width + 10, 20);
+
+    ctx.font = '12px Arial';
+    ctx.fillStyle = layer.color;
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 3;
+    ctx.strokeText(layer.name, 10, 20);
+    ctx.fillText(layer.name, 10, 20);
+    ctx.restore();
+  }, [isDev]);
+
+  const handleCanvasRef = useCallback((canvas: HTMLCanvasElement | null, layer: Layer) => {
+    if (!canvas || layer.canvas === canvas) return;
+
+    initializeLayerCanvas(layer.id, canvas);
+
+    if (layer.canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(layer.canvas, 0, 0);
+
+        if (isDev) {
+          renderLayerName(ctx, layer);
+        }
+      }
+    }
+  }, [initializeLayerCanvas, renderLayerName, isDev]);
 
   return (
     <div className="mochipad-container">
@@ -61,25 +102,17 @@ export function Mochipad({ cutId, comicId, cutData }: MochipadProps) {
             onMouseEnter={() => setIsMouseInCanvas(true)}
             onMouseLeave={() => setIsMouseInCanvas(false)}
           >
-            {layers.map((layer, index) => (
+            {layers.map((layer) => (
               <canvas
                 key={layer.id}
-                ref={(canvas) => {
-                  if (canvas && !layer.canvas) {
-                    canvas.width = useMochipadStore.getState().canvasWidth;
-                    canvas.height = useMochipadStore.getState().canvasHeight;
-                    const context = canvas.getContext('2d');
-                    if (context) {
-                      useMochipadStore.getState().initializeLayerCanvas(layer.id, canvas);
-                    }
-                  }
-                }}
-                className="mochipad-canvas-layer"
+                ref={(canvas) => handleCanvasRef(canvas, layer)}
+                width={canvasWidth}
+                height={canvasHeight}
+                className={`mochipad-layer ${layer.visible ? '' : 'hidden'} ${layer.id === activeLayerId ? 'active' : ''
+                  }`}
                 style={{
                   opacity: layer.opacity,
-                  display: layer.visible ? 'block' : 'none',
-                  zIndex: index,
-                  pointerEvents: layer.id === activeLayerId ? 'auto' : 'none'
+                  zIndex: layer.sequence
                 }}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}

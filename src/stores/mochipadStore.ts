@@ -1,13 +1,14 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { fetchCutById } from '../services/cutService';
-import { Cut } from '../types';
+import { Cut, LayerData } from '../types';
 
 // 레이어 관련 기본 인터페이스 정의
 // 각 레이어는 고유한 ID, 이름, 가시성, 투명도 등의 속성을 가집니다.
 export interface Layer {
   id: string;
   name: string;
+  sequence: number;
   visible: boolean;
   opacity: number;
   canvas: HTMLCanvasElement | null;  // 실제 그림이 그려지는 캔버스 요소
@@ -21,16 +22,7 @@ interface HistoryState {
   description?: string;
 }
 
-// 레이어 데이터 저장 형식
-// DB에 저장될 때 사용되는 형식입니다.
-interface LayerData {
-  imageData: string;  // base64로 인코딩된 이미지 데이터
-  name: string;
-  visible: boolean;
-  opacity: number;
-  locked: boolean;
-}
-
+// 레이어 시퀀스 번호를 관리하기 위한 상태 추가
 interface MochipadState {
   layers: Layer[];
   activeLayerId: string | null;
@@ -48,9 +40,10 @@ interface MochipadState {
   offscreenCanvas: HTMLCanvasElement | null;
   offscreenContext: CanvasRenderingContext2D | null;
   cut: Cut | null;
+  nextSequence: number;
 
   // Actions
-  addLayer: () => Layer;
+  addLayer: (layerData?: LayerData) => Promise<Layer>;
   removeLayer: (id: string) => void;
   setActiveLayer: (id: string) => void;
   setLayerVisibility: (id: string, visible: boolean) => void;
@@ -81,6 +74,7 @@ interface MochipadState {
   };
   initializeLayerData: (layerId: string, imageData: string) => void;
   loadCut: (cutId: string) => Promise<void>;
+  getNextSequence: () => number;
 }
 
 const generateRandomColor = () => {
@@ -107,20 +101,51 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
   offscreenCanvas: null,
   offscreenContext: null,
   cut: null,
+  nextSequence: 1,
 
-  addLayer: () => {
-    const layerIndex = get().layers.length + 1;
-    const layerId = `layer${String(layerIndex).padStart(2, '0')}`;
+  getNextSequence: () => {
+    const sequence = get().nextSequence;
+    set(state => ({ nextSequence: state.nextSequence + 1 }));
+    return sequence;
+  },
+
+  addLayer: async (layerData?: LayerData) => {
+    const sequence = get().getNextSequence();
+    const layerId = uuidv4();
+    const state = get();
+
+    let canvas: HTMLCanvasElement | null = null;
+    let context: CanvasRenderingContext2D | null = null;
+
+    if (layerData?.imageData) {
+      canvas = document.createElement('canvas');
+      canvas.width = state.canvasWidth;
+      canvas.height = state.canvasHeight;
+      context = canvas.getContext('2d');
+
+      if (context) {
+        await new Promise<void>((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            context!.globalAlpha = 1;
+            context!.drawImage(img, 0, 0);
+            resolve();
+          };
+          img.src = layerData.imageData;
+        });
+      }
+    }
 
     const newLayer: Layer = {
-      id: layerId,  // UUID 대신 고정된 ID 사용
-      name: `Layer ${layerIndex}`,
-      visible: true,
-      opacity: 1,
-      canvas: null,
-      context: null,
+      id: layerId,
+      name: layerData?.name || `Layer ${sequence}`,
+      sequence,
+      visible: layerData?.visible ?? true,
+      opacity: layerData?.opacity ?? 1,
+      canvas,
+      context,
       color: generateRandomColor(),
-      locked: false
+      locked: layerData?.locked ?? false
     };
 
     set((state) => ({
@@ -194,18 +219,19 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
     const context = canvas.getContext('2d');
     if (!context) return state;
 
+    const layer = state.layers.find(l => l.id === id);
+    if (!layer) return state;
+
     // 캔버스 초기 설정
     context.globalAlpha = 1;
     context.lineCap = 'round';
     context.lineJoin = 'round';
+    context.strokeStyle = state.brushColor;
+    context.lineWidth = state.brushSize;
 
     return {
-      layers: state.layers.map((layer) =>
-        layer.id === id ? {
-          ...layer,
-          canvas,
-          context
-        } : layer
+      layers: state.layers.map((l) =>
+        l.id === id ? { ...l, canvas, context } : l
       ),
     };
   }),
@@ -322,6 +348,7 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
     const backgroundLayer: Layer = {
       id: 'background',
       name: 'Background',
+      sequence: 0,
       visible: true,
       opacity: 1,
       canvas,
@@ -464,25 +491,16 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
   // 현재 캔버스의 모든 레이어 데이터를 DB 저장 가능한 형태로 변환합니다.
   getLayerData: () => {
     const state = get();
-    // DB 스키마에 맞춰 layer01~layer05까지의 데이터를 준비
-    const layerData: { [key: string]: LayerData | null } = {
-      layer01: null,
-      layer02: null,
-      layer03: null,
-      layer04: null,
-      layer05: null
-    };
+    const layerData: { [key: string]: LayerData | null } = {};
 
     // 각 레이어의 데이터를 순회하면서 저장 가능한 형태로 변환
-    state.layers.forEach((layer, index) => {
-      const layerKey = `layer${String(index + 1).padStart(2, '0')}`;
-
+    state.layers.forEach(layer => {
       if (layer.canvas) {
-        // 각 레이어의 캔버스를 base64 이미지로 변환하고
-        // 관련 메타데이터와 함께 저장
-        layerData[layerKey] = {
+        layerData[layer.id] = {
+          id: layer.id,
           imageData: layer.canvas.toDataURL('image/png'),
           name: layer.name,
+          sequence: layer.sequence,
           visible: layer.visible,
           opacity: layer.opacity,
           locked: layer.locked
@@ -513,8 +531,8 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
     }
 
     return {
-      layerData,  // 개별 레이어 데이터
-      mergedImage: mergedCanvas.toDataURL('image/png')  // 합성된 최종 이미지
+      layerData,
+      mergedImage: mergedCanvas.toDataURL('image/png')
     };
   },
 
@@ -546,47 +564,56 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
   loadCut: async (cutId: string) => {
     try {
       const cutData = await fetchCutById(cutId);
+      set({ layers: [] });  // 기존 레이어 초기화
 
-      // cutData에 있는 layer01~layer05 중, 데이터가 있는 갯수만큼 레이어를 생성
-      const layerCount = Object.keys(cutData).filter(key => key.startsWith('layer')).length;
-      for (let i = 0; i < layerCount; i++) {
-        get().addLayer();
+      let maxSequence = 0;
+      if (cutData.layers_data) {
+        maxSequence = Math.max(...cutData.layers_data.map(layer => layer.sequence || 0));
       }
+      set({ nextSequence: maxSequence + 1 });
 
-      // 레이어 초기화 (인덱스 기반)
-      ['layer01', 'layer02', 'layer03', 'layer04', 'layer05'].forEach((layerId, index) => {
-        if (cutData[layerId]) {
-          const layerData = cutData[layerId];
-          if (layerData.imageData) {
-            const layer = get().layers[index];
-            if (layer && layer.canvas) {
-              const ctx = layer.canvas.getContext('2d');
-              if (ctx) {
-                ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
-                const img = new Image();
-                img.onload = () => {
-                  ctx.globalAlpha = 1;
-                  ctx.drawImage(img, 0, 0);
-                };
-                img.src = layerData.imageData;
-              }
-              // 레이어 속성 설정
-              set(state => ({
-                layers: state.layers.map((l, i) =>
-                  i === index ? {
-                    ...l,
-                    visible: layerData.visible,
-                    opacity: layerData.opacity,
-                    locked: layerData.locked
-                  } : l
-                )
-              }));
-            }
+      if (cutData.layers_data) {
+        // 모든 레이어를 순차적으로 로드
+        for (const layerData of cutData.layers_data) {
+          const canvas = document.createElement('canvas');
+          canvas.width = get().canvasWidth;
+          canvas.height = get().canvasHeight;
+          const context = canvas.getContext('2d');
+
+          if (context && layerData.imageData) {
+            // 이미지 로딩을 Promise로 처리
+            await new Promise<void>((resolve, reject) => {
+              const img = new Image();
+              img.onload = () => {
+                context.globalAlpha = 1;
+                context.drawImage(img, 0, 0);
+                resolve();
+              };
+              img.onerror = reject;
+              img.src = layerData.imageData;
+            });
+
+            // 레이어 생성 및 추가
+            const newLayer: Layer = {
+              id: layerData.id || uuidv4(),
+              name: layerData.name,
+              sequence: layerData.sequence,
+              visible: layerData.visible,
+              opacity: layerData.opacity,
+              canvas,
+              context,
+              color: generateRandomColor(),
+              locked: layerData.locked
+            };
+
+            set(state => ({
+              layers: [...state.layers, newLayer],
+              activeLayerId: state.activeLayerId || newLayer.id
+            }));
           }
         }
-      });
+      }
 
-      // 배경색 설정
       if (cutData.background_color) {
         get().setBackgroundColor(cutData.background_color);
       }

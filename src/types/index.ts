@@ -13,11 +13,7 @@ export interface Cut {
   storyboard_text: string;
   drawing?: string;
   background_color?: string;
-  layer01?: string;
-  layer02?: string;
-  layer03?: string;
-  layer04?: string;
-  layer05?: string;
+  layers_data?: LayerData[];
   created_by: string;
   created_at: string;
   comics?: Comic;
@@ -27,16 +23,23 @@ export interface Cut {
   updated_at: string;
 }
 
+export interface LayerData {
+  id: string;
+  imageData: string;
+  name: string;
+  sequence: number;
+  visible: boolean;
+  opacity: number;
+  locked: boolean;
+}
+
 export interface CutUpdate {
   storyboard_text?: string;
   drawing?: string;
   background_color?: string;
-  layer01?: string;
-  layer02?: string;
-  layer03?: string;
-  layer04?: string;
-  layer05?: string;
+  layers_data?: LayerData[];
 }
+
 export interface User {
   id: string;
   email: string;

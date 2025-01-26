@@ -8,6 +8,7 @@ import { ComicCuts } from './pages/ComicCuts';
 import { CutDetail } from './pages/CutDetail';
 import { supabase } from './lib/supabase';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { DevConsole } from './components/debug/DevConsole';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -27,16 +28,19 @@ function App() {
   }, []);
 
   return (
-    <Router>
-      <AppNavbar user={user} />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/comics/:comicId/cuts" element={<ComicCuts />} />
-        <Route path="/comics/:comicId/cuts/:cutId" element={<CutDetail />} />
-      </Routes>
-    </Router>
+    <>
+      <Router>
+        <AppNavbar user={user} />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/comics/:comicId/cuts" element={<ComicCuts />} />
+          <Route path="/comics/:comicId/cuts/:cutId" element={<CutDetail />} />
+        </Routes>
+      </Router>
+      <DevConsole />
+    </>
   );
 }
 

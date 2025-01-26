@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useMochipadStore } from '../stores/mochipadStore';
 
 // Canvas의 확대/축소와 이동을 관리하는 커스텀 훅
@@ -7,10 +7,10 @@ export function usePanAndZoom() {
   // 스페이스바가 눌렸는지 여부를 추적
   // 스페이스바가 눌린 상태에서만 캔버스 이동이 가능합니다
   const [isSpacePressed, setIsSpacePressed] = useState(false);
-  
+
   // 현재 드래그 중인지 여부를 추적
   const [isDragging, setIsDragging] = useState(false);
-  
+
   // 드래그 시작 위치를 저장
   // 드래그 시작점을 기준으로 얼마나 이동했는지 계산하는데 사용됩니다
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
@@ -22,7 +22,7 @@ export function usePanAndZoom() {
   // 캔버스의 확대/축소를 담당합니다
   const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
     e.preventDefault();
-    
+
     // 실제 그리기 영역의 DOM 요소와 위치 정보를 가져옵니다
     const drawableRect = (e.currentTarget.querySelector('.canvas-drawable-area') as HTMLElement)?.getBoundingClientRect();
     if (!drawableRect) return;

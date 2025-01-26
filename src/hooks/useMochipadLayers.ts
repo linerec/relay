@@ -2,18 +2,15 @@ import { useEffect } from 'react';
 import { useMochipadStore } from '../stores/mochipadStore';
 
 interface LayerData {
-  background_color?: string;
-  layer01?: string;
-  layer02?: string;
-  layer03?: string;
-  layer04?: string;
-  layer05?: string;
+  layers_data?: LayerData[];
+  background_color: string;
 }
 
 export function useMochipadLayers(initialLayers?: LayerData) {
   const {
     layers,
     addLayer,
+    initializeLayerCanvas,
     setActiveLayer,
     backgroundColor,
     setBackgroundColor,
@@ -40,23 +37,19 @@ export function useMochipadLayers(initialLayers?: LayerData) {
       setBackgroundColor(initialLayers.background_color);
     }
 
-    // Create additional layers if they exist
-    const layerData = [
-      initialLayers.layer01,
-      initialLayers.layer02,
-      initialLayers.layer03,
-      initialLayers.layer04,
-      initialLayers.layer05
-    ];
-
-    layerData.forEach(data => {
-      if (data) {
+    // Create layers from layers_data
+    if (initialLayers.layers_data) {
+      initialLayers.layers_data.forEach(layerData => {
         const layer = addLayer();
         if (layer) {
-          loadImageToLayer(layer.id, data);
+          loadImageToLayer(layer.id, layerData.imageData);
+          // Set layer properties
+          useMochipadStore.getState().setLayerVisibility(layer.id, layerData.visible);
+          useMochipadStore.getState().setLayerOpacity(layer.id, layerData.opacity);
+          useMochipadStore.getState().setLayerLocked(layer.id, layerData.locked);
         }
-      }
-    });
+      });
+    }
 
     // Set first layer as active
     if (layers[0]) {
@@ -97,13 +90,17 @@ export function useMochipadLayers(initialLayers?: LayerData) {
       }
     });
 
+    // 레이어 데이터 수집
+    const layersData = layers.map(layer => ({
+      imageData: layer.canvas?.toDataURL('image/png') || '',
+      name: layer.name,
+      visible: layer.visible,
+      opacity: layer.opacity,
+      locked: layer.locked
+    }));
     return {
       drawing: mergedCanvas.toDataURL('image/png'),
-      layer01: layers[0]?.canvas?.toDataURL('image/png'),
-      layer02: layers[1]?.canvas?.toDataURL('image/png'),
-      layer03: layers[2]?.canvas?.toDataURL('image/png'),
-      layer04: layers[3]?.canvas?.toDataURL('image/png'),
-      layer05: layers[4]?.canvas?.toDataURL('image/png'),
+      layers_data: layersData,
       background_color: backgroundColor, // store에서 관리하는 배경색 사용
     };
   };

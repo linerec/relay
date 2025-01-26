@@ -81,5 +81,16 @@ export function useCanvasSetup() {
     };
   }, [layers, canvasWidth, canvasHeight, scale, offset, offscreenCanvas]);
 
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    container.style.setProperty('--canvas-width', `${canvasWidth}px`);
+    container.style.setProperty('--canvas-height', `${canvasHeight}px`);
+    container.style.setProperty('--canvas-scale', scale.toString());
+    container.style.setProperty('--canvas-offset-x', `${offset.x}px`);
+    container.style.setProperty('--canvas-offset-y', `${offset.y}px`);
+  }, [canvasWidth, canvasHeight, scale, offset.x, offset.y]);
+
   return containerRef;
 }
