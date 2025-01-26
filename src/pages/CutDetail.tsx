@@ -8,7 +8,7 @@ import { useMochipadStore } from '../stores/mochipadStore';
 
 export function CutDetail() {
   const navigate = useNavigate();
-  const { cutId } = useParams<{ cutId: string }>();
+  const { cutId, comicId } = useParams<{ cutId: string; comicId: string }>();
   const [storyboardText, setStoryboardText] = useState('');
   const store = useMochipadStore();
   const cut = useMochipadStore(state => state.cut);
@@ -42,9 +42,19 @@ export function CutDetail() {
       store.loadCut(cutId);
 
       // Cut List 페이지로 이동
-      navigate('/cuts');
+      handleBackToCuts();
     } catch (error) {
       console.error('Error updating cut:', error);
+    }
+  };
+
+  const handleBackToCuts = () => {
+    // comic ID가 있으면 해당 comic의 cuts 목록으로 이동
+    if (comicId) {
+      navigate(`/comics/${comicId}/cuts`);
+    } else {
+      // comic ID가 없으면 전체 cuts 목록으로 이동
+      navigate('/cuts');
     }
   };
 
@@ -53,6 +63,11 @@ export function CutDetail() {
   return (
     <Container>
       <Form onSubmit={handleSubmit}>
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <Button variant="outline-secondary" onClick={handleBackToCuts}>
+            Back to Cuts
+          </Button>
+        </div>
         <Form.Group className="mb-3">
           <Form.Label>Storyboard Text</Form.Label>
           <Form.Control
