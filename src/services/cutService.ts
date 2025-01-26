@@ -6,7 +6,7 @@ export async function updateCutOrder(cut: Cut, newOrderIndex: number) {
     .from('cuts')
     .update({ order_index: newOrderIndex })
     .eq('id', cut.id);
-  
+
   if (error) throw error;
 }
 
@@ -24,19 +24,26 @@ export async function fetchCutsByComicId(comicId: string) {
   return data || [];
 }
 
-export async function fetchCutById(cutId: string) {
+export async function fetchCutById(cutId: string): Promise<Cut> {
   const { data, error } = await supabase
     .from('cuts')
-    .select(`
-      *,
-      comics(*),
-      profiles(username)
-    `)
+    .select('*, comics(*), profiles(username)')
     .eq('id', cutId)
     .single();
 
   if (error) throw error;
-  return data;
+
+  // 레이어 데이터 파싱 (한 번만 파싱)
+  const parsedData = {
+    ...data,
+    layer01: data.layer01 ? JSON.parse(data.layer01) : null,
+    layer02: data.layer02 ? JSON.parse(data.layer02) : null,
+    layer03: data.layer03 ? JSON.parse(data.layer03) : null,
+    layer04: data.layer04 ? JSON.parse(data.layer04) : null,
+    layer05: data.layer05 ? JSON.parse(data.layer05) : null,
+  };
+
+  return parsedData;
 }
 
 export async function updateCut(cutId: string, updates: CutUpdate) {
@@ -90,7 +97,7 @@ export async function saveCutWithLayers(cutId: string, {
 }: CutUpdate) {
   const updates = {
     ...rest,
-    drawing, // 모든 레이어를 합친 미리보기 이미지
+    drawing,
     background_color,
     layer01,
     layer02,

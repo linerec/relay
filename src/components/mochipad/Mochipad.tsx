@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { MochipadToolbar } from './MochipadToolbar';
 import { TabPanel } from './TabPanel';
 import { useCanvasSetup } from '../../hooks/useCanvasSetup';
@@ -11,11 +11,13 @@ import './mochipad.css';
 interface MochipadProps {
   cutId?: string;
   comicId?: string;
+  cutData?: any;
 }
 
-export function Mochipad({ cutId, comicId }: MochipadProps) {
+export function Mochipad({ cutId, comicId, cutData }: MochipadProps) {
   const containerRef = useCanvasSetup();
-  
+  const store = useMochipadStore();
+
   const {
     isSpacePressed,
     setIsSpacePressed,
@@ -41,7 +43,7 @@ export function Mochipad({ cutId, comicId }: MochipadProps) {
     <div className="mochipad-container">
       <MochipadToolbar />
       <div className="mochipad-workspace">
-        <div 
+        <div
           className={`mochipad-canvas-container ${isSpacePressed ? 'hand-tool' : ''} ${isDragging ? 'dragging' : ''}`}
           ref={containerRef}
           onWheel={handleWheel}
@@ -54,7 +56,7 @@ export function Mochipad({ cutId, comicId }: MochipadProps) {
           <div className="canvas-background">
             <div className="canvas-drawable-area" />
           </div>
-          <div 
+          <div
             className="canvas-layers-container"
             onMouseEnter={() => setIsMouseInCanvas(true)}
             onMouseLeave={() => setIsMouseInCanvas(false)}

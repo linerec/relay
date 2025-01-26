@@ -1,15 +1,19 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
+import { fetchCutById } from '../services/cutService';
+import { Cut } from '../types';
 
+// 레이어 관련 기본 인터페이스 정의
+// 각 레이어는 고유한 ID, 이름, 가시성, 투명도 등의 속성을 가집니다.
 export interface Layer {
   id: string;
   name: string;
   visible: boolean;
   opacity: number;
-  canvas: HTMLCanvasElement | null;
-  context: CanvasRenderingContext2D | null;
-  color: string;
-  locked: boolean;
+  canvas: HTMLCanvasElement | null;  // 실제 그림이 그려지는 캔버스 요소
+  context: CanvasRenderingContext2D | null;  // 캔버스 컨텍스트
+  color: string;  // 레이어 식별을 위한 색상
+  locked: boolean;  // 레이어 잠금 상태
 }
 
 interface HistoryState {
@@ -17,8 +21,10 @@ interface HistoryState {
   description?: string;
 }
 
+// 레이어 데이터 저장 형식
+// DB에 저장될 때 사용되는 형식입니다.
 interface LayerData {
-  imageData: string;  // base64 이미지 데이터
+  imageData: string;  // base64로 인코딩된 이미지 데이터
   name: string;
   visible: boolean;
   opacity: number;
@@ -41,7 +47,8 @@ interface MochipadState {
   historyIndex: number;
   offscreenCanvas: HTMLCanvasElement | null;
   offscreenContext: CanvasRenderingContext2D | null;
-  
+  cut: Cut | null;
+
   // Actions
   addLayer: () => Layer;
   removeLayer: (id: string) => void;
@@ -63,23 +70,17 @@ interface MochipadState {
   clearLayer: (id: string) => void;
   setBackgroundColor: (color: string) => void;
   initializeBackgroundLayer: (canvas: HTMLCanvasElement) => void;
-  loadFromCut: (cutData: { 
-    layer01: string | null,
-    layer02: string | null,
-    layer03: string | null,
-    layer04: string | null,
-    layer05: string | null,
-    background_color: string 
-  }) => void;
   saveHistory: () => void;
   undo: () => void;
   redo: () => void;
   moveToHistoryIndex: (index: number) => void;
   initializeOffscreenCanvas: () => void;
-  getLayerData: () => { 
+  getLayerData: () => {
     layerData: { [key: string]: LayerData | null };
     mergedImage: string;
   };
+  initializeLayerData: (layerId: string, imageData: string) => void;
+  loadCut: (cutId: string) => Promise<void>;
 }
 
 const generateRandomColor = () => {
@@ -105,11 +106,15 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
   historyIndex: -1,
   offscreenCanvas: null,
   offscreenContext: null,
+  cut: null,
 
   addLayer: () => {
+    const layerIndex = get().layers.length + 1;
+    const layerId = `layer${String(layerIndex).padStart(2, '0')}`;
+
     const newLayer: Layer = {
-      id: uuidv4(),
-      name: `Layer ${get().layers.length + 1}`,
+      id: layerId,  // UUID 대신 고정된 ID 사용
+      name: `Layer ${layerIndex}`,
       visible: true,
       opacity: 1,
       canvas: null,
@@ -141,8 +146,8 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
     }
 
     const newLayers = state.layers.filter(l => l.id !== id);
-    const newActiveId = state.activeLayerId === id ? 
-      newLayers[Math.max(0, layerIndex - 1)]?.id : 
+    const newActiveId = state.activeLayerId === id ?
+      newLayers[Math.max(0, layerIndex - 1)]?.id :
       state.activeLayerId;
 
     return {
@@ -156,7 +161,7 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
     if (!layer || layer.locked) return state;
     return { activeLayerId: id };
   }),
-  
+
   setLayerVisibility: (id, visible) => set((state) => ({
     layers: state.layers.map((layer) =>
       layer.id === id ? { ...layer, visible } : layer
@@ -217,12 +222,12 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
 
   setScale: (scale) => set({ scale }),
   setOffset: (offset) => set({ offset }),
-  
+
   updateZoom: (delta: number, point: { x: number; y: number }) => {
     const state = get();
     const minScale = 0.1;
     const maxScale = 5;
-    
+
     const newScale = Math.min(maxScale, Math.max(minScale, state.scale * (1 - delta * 0.1)));
     const scaleChange = newScale / state.scale;
     const newOffset = {
@@ -296,7 +301,7 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
     layer.context.clearRect(0, 0, state.canvasWidth, state.canvasHeight);
 
     return {
-      layers: state.layers.map(l => 
+      layers: state.layers.map(l =>
         l.id === id ? { ...l } : l
       )
     };
@@ -331,30 +336,12 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
     return { backgroundLayer };
   }),
 
-  loadFromCut: (cutData: { 
-    layer01: string | null,
-    layer02: string | null,
-    layer03: string | null,
-    layer04: string | null,
-    layer05: string | null,
-    background_color: string 
-  }) => set((state) => {
-    if (state.backgroundLayer?.context) {
-      state.backgroundLayer.context.fillStyle = cutData.background_color;
-      state.backgroundLayer.context.fillRect(0, 0, state.canvasWidth, state.canvasHeight);
-    }
-
-    return {
-      backgroundColor: cutData.background_color
-    };
-  }),
-
   saveHistory: () => {
     const state = get();
     const layerImages: { [layerId: string]: string } = {};
-    
+
     let hasContent = false;
-    
+
     // 모든 레이어의 현재 상태를 저장
     state.layers.forEach(layer => {
       if (layer.canvas) {
@@ -362,7 +349,7 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
         const emptyCanvas = document.createElement('canvas');
         emptyCanvas.width = state.canvasWidth;
         emptyCanvas.height = state.canvasHeight;
-        
+
         if (dataURL !== emptyCanvas.toDataURL()) {
           layerImages[layer.id] = dataURL;
           hasContent = true;
@@ -373,7 +360,7 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
     if (!hasContent) return;
 
     const newHistory = state.history.slice(0, state.historyIndex + 1);
-    const newHistoryEntry = { 
+    const newHistoryEntry = {
       layerImages,
       description: `Drawing ${newHistory.length + 1}`
     };
@@ -473,8 +460,11 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
     set({ offscreenCanvas: canvas, offscreenContext: context });
   },
 
+  // getLayerData 메서드
+  // 현재 캔버스의 모든 레이어 데이터를 DB 저장 가능한 형태로 변환합니다.
   getLayerData: () => {
     const state = get();
+    // DB 스키마에 맞춰 layer01~layer05까지의 데이터를 준비
     const layerData: { [key: string]: LayerData | null } = {
       layer01: null,
       layer02: null,
@@ -483,11 +473,13 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
       layer05: null
     };
 
-    // 각 레이어의 데이터를 JSON 형식으로 변환
+    // 각 레이어의 데이터를 순회하면서 저장 가능한 형태로 변환
     state.layers.forEach((layer, index) => {
       const layerKey = `layer${String(index + 1).padStart(2, '0')}`;
-      
+
       if (layer.canvas) {
+        // 각 레이어의 캔버스를 base64 이미지로 변환하고
+        // 관련 메타데이터와 함께 저장
         layerData[layerKey] = {
           imageData: layer.canvas.toDataURL('image/png'),
           name: layer.name,
@@ -498,18 +490,20 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
       }
     });
 
-    // 모든 레이어를 합친 이미지 생성
+    // 모든 레이어를 하나의 이미지로 합치는 과정
+    // 이는 미리보기나 썸네일로 사용됩니다.
     const mergedCanvas = document.createElement('canvas');
     mergedCanvas.width = state.canvasWidth;
     mergedCanvas.height = state.canvasHeight;
     const mergedContext = mergedCanvas.getContext('2d');
 
     if (mergedContext) {
-      // 배경색 먼저 채우기
+      // 배경색을 먼저 그립니다
       mergedContext.fillStyle = state.backgroundColor;
       mergedContext.fillRect(0, 0, state.canvasWidth, state.canvasHeight);
 
-      // 각 레이어 순서대로 그리기
+      // 각 레이어를 순서대로 합성
+      // 레이어의 가시성과 투명도를 고려하여 그립니다
       state.layers.forEach(layer => {
         if (layer.visible && layer.canvas) {
           mergedContext.globalAlpha = layer.opacity;
@@ -519,8 +513,87 @@ export const useMochipadStore = create<MochipadState>((set, get) => ({
     }
 
     return {
-      layerData,
-      mergedImage: mergedCanvas.toDataURL('image/png')
+      layerData,  // 개별 레이어 데이터
+      mergedImage: mergedCanvas.toDataURL('image/png')  // 합성된 최종 이미지
     };
+  },
+
+  initializeLayerData: (layerId: string, imageData: string) => {
+    set((state) => {
+      const layer = state.layers.find(l => l.id === layerId);
+      if (!layer || !layer.canvas) return state;
+
+      const ctx = layer.canvas.getContext('2d');
+      if (!ctx) return state;
+
+      // 캔버스 클리어
+      ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
+
+      // 이미지 데이터 그리기
+      const img = new Image();
+      img.onload = () => {
+        if (ctx) {
+          ctx.globalAlpha = 1;  // 투명도 초기화
+          ctx.drawImage(img, 0, 0);
+        }
+      };
+      img.src = imageData;
+
+      return state;
+    });
+  },
+
+  loadCut: async (cutId: string) => {
+    try {
+      const cutData = await fetchCutById(cutId);
+
+      // cutData에 있는 layer01~layer05 중, 데이터가 있는 갯수만큼 레이어를 생성
+      const layerCount = Object.keys(cutData).filter(key => key.startsWith('layer')).length;
+      for (let i = 0; i < layerCount; i++) {
+        get().addLayer();
+      }
+
+      // 레이어 초기화 (인덱스 기반)
+      ['layer01', 'layer02', 'layer03', 'layer04', 'layer05'].forEach((layerId, index) => {
+        if (cutData[layerId]) {
+          const layerData = cutData[layerId];
+          if (layerData.imageData) {
+            const layer = get().layers[index];
+            if (layer && layer.canvas) {
+              const ctx = layer.canvas.getContext('2d');
+              if (ctx) {
+                ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height);
+                const img = new Image();
+                img.onload = () => {
+                  ctx.globalAlpha = 1;
+                  ctx.drawImage(img, 0, 0);
+                };
+                img.src = layerData.imageData;
+              }
+              // 레이어 속성 설정
+              set(state => ({
+                layers: state.layers.map((l, i) =>
+                  i === index ? {
+                    ...l,
+                    visible: layerData.visible,
+                    opacity: layerData.opacity,
+                    locked: layerData.locked
+                  } : l
+                )
+              }));
+            }
+          }
+        }
+      });
+
+      // 배경색 설정
+      if (cutData.background_color) {
+        get().setBackgroundColor(cutData.background_color);
+      }
+
+      set({ cut: cutData });
+    } catch (error) {
+      console.error('Error loading cut:', error);
+    }
   },
 }));

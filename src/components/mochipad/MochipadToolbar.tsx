@@ -1,14 +1,9 @@
-import React from 'react';
 import { Button, ButtonGroup } from 'react-bootstrap';
 import { BsBrush, BsEraser } from 'react-icons/bs';
 import { useMochipadStore } from '../../stores/mochipadStore';
 import { OpacitySlider } from '../drawing/OpacitySlider';
 import { SizeSlider } from '../drawing/SizeSlider';
 import { ColorPicker } from '../drawing/ColorPicker';
-
-interface MochipadToolbarProps {
-  // onSave prop 제거
-}
 
 export function MochipadToolbar() {
   const {
