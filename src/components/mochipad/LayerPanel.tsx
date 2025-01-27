@@ -104,7 +104,6 @@ export function LayerPanel() {
           size="sm"
           variant="outline-primary"
           onClick={addLayer}
-          disabled={layers.length >= 5}
         >
           Add Layer
         </Button>

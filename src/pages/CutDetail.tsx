@@ -15,7 +15,24 @@ export function CutDetail() {
 
   useEffect(() => {
     if (!cutId) return;
-    store.loadCut(cutId);
+
+    const initializeCut = async () => {
+      await store.loadCut(cutId);
+
+      // cut 로드 후 레이어가 없으면 기본 레이어 추가
+      const currentLayers = useMochipadStore.getState().layers;
+      if (currentLayers.length === 0) {
+        await store.addLayer({
+          name: "Layer 1",
+          sequence: 1,
+          visible: true,
+          opacity: 1,
+          locked: false
+        });
+      }
+    };
+
+    initializeCut();
   }, [cutId]);
 
   useEffect(() => {
@@ -54,7 +71,7 @@ export function CutDetail() {
       navigate(`/comics/${comicId}/cuts`);
     } else {
       // comic ID가 없으면 전체 cuts 목록으로 이동
-      navigate('/cuts');
+      navigate('/comics');
     }
   };
 
